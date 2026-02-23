@@ -20,7 +20,8 @@ class Explainability:
                   feature_names=x_train.columns.tolist(),
                   class_names=class_names,
                   mode='classification',
-                  discretize_continuous=True
+                  discretize_continuous=True,
+                  random_state=42           
             )
             #generate LIME explanations for each instance in the test set
             lime_rows = []
