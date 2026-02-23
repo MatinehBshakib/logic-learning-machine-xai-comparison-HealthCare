@@ -10,9 +10,9 @@ import pandas as pd
 
 def main():
     loader = LoadData()
-    target_list = ["readmitted"]  
-    dataset_name = "Diabetes_130_US"  
-    url = "diabetic_data.csv" 
+    target_list = ["Baselinehistological staging"]  
+    dataset_name = "HCV-Egy-Data"  
+    url = "HCV-Egy-Data.csv" 
     
     # 1. Load Raw Data
     X_raw, y_raw = loader.load_file(file_path=url, target_cols=target_list)
