@@ -11,7 +11,7 @@ import pandas as pd
 def main():
     loader = LoadData()
     target_list = ["Baselinehistological staging"]  
-    dataset_name = "HCV-Egy-Data"  
+    dataset_name = "Hepatitis"  
     url = "HCV-Egy-Data.csv" 
     
     # 1. Load Raw Data

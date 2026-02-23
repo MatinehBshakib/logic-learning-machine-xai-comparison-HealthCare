@@ -11,7 +11,7 @@ class HCVOptimizer:
             'Jaundice', 'Epigastric pain'
         ]
 
-    def optimize(self, X, y=None, target_name='Baseline histological fibroses', is_train=True):
+    def optimize(self, X, y=None, target_name='Baselinehistological staging', is_train=True):
         print("\n>>> Starting HCV Specific Optimization...")
         X = X.copy()
         # 1. Clean Column Names (Remove trailing spaces)
@@ -46,6 +46,7 @@ class HCVOptimizer:
                 target_series = y.iloc[:, 0]
             else:
                 target_series = y
+            target_series = pd.to_numeric(target_series, errors='coerce').fillna(0)
             y_new = target_series.apply(lambda val: 1 if val in [3, 4] else 0)
             y_final = y_new.to_frame(name='Stage')
 
