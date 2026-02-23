@@ -63,7 +63,10 @@ def main():
     loader.export_data_for_rulex(x_train, x_test, y_train, y_test, dataset_name=dataset_name)
 
     # 7. Execute Strategy
-    strategy = SingleOutput(algo='xgb') 
+    counts = y_train.iloc[:, 0].value_counts()
+    imbalance_ratio = counts[0] / counts[1] if 1 in counts and counts[1] > 0 else 1
+    print(f"\n>>> Recommended XGBoost scale_pos_weight: {imbalance_ratio:.2f}")
+    strategy = SingleOutput(algo='xgb', scale_pos_weight=imbalance_ratio) 
     strategy.execute(x_train, x_test, y_train, y_test)
     
     # 8. Post Processing

@@ -12,8 +12,10 @@ class BaseStrategy(Explainability):
       def execute(self, x_train, x_test, y_train, y_test):
             raise NotImplementedError()
 class SingleOutput(BaseStrategy):
-      def __init__(self, algo='rf'):
+      def __init__(self, algo='rf', scale_pos_weight=1.0):
             self.algo = algo
+            self.scale_pos_weight = scale_pos_weight
+            
       def execute(self, x_train, x_test, y_train, y_test):
             # Ensure y is 1D for Single Output
             if isinstance(y_train, pd.DataFrame):
@@ -23,9 +25,9 @@ class SingleOutput(BaseStrategy):
             class_names = ["0", "1"]
             #Train the model 
             if self.algo == 'xgb':
-                  clf = xgb.XGBClassifier(eval_metric='logloss', random_state=42, base_score=0.5)
+                  clf = xgb.XGBClassifier(eval_metric='logloss', random_state=42, base_score=0.5, scale_pos_weight=self.scale_pos_weight)
             else:
-                  clf = RandomForestClassifier(random_state=42)
+                  clf = RandomForestClassifier(class_weight='balanced', random_state=42)
             clf.fit(x_train, y_train)
             print(f"Training Features: {x_train.columns.tolist()}")
             print(f"Model Accuracy: {clf.score(x_test, y_test):.4f}")

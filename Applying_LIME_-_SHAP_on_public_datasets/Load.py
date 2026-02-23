@@ -86,10 +86,17 @@ class LoadData:
                   y = df[target_cols].copy()
                   cols_to_drop = target_cols + ['id']  
                   X = df.drop(columns=cols_to_drop)
-                  y = y.apply(pd.to_numeric, errors='ignore') 
                   for col in y.columns:
+                      # 1. Safely try to convert the column to numbers
+                      try:
+                          y[col] = pd.to_numeric(y[col])
+                      except (ValueError, TypeError):
+                          # If it fails (because it's real text), just leave it alone
+                          pass
+                      
+                      # 2. If it is now numeric, fill the NaNs and convert to integer
                       if pd.api.types.is_numeric_dtype(y[col]): 
-                          y[col] = y[col].fillna(0).astype(int)           
+                          y[col] = y[col].fillna(0).astype(int)          
             else:
                   raise ValueError("target_cols must be specified when loading from CSV.")
             return self.advanced_imputation(X), y
