@@ -10,6 +10,8 @@ class Explainability:
                   if len(data_numpy.shape) == 1:
                         data_numpy = data_numpy.reshape(1, -1)
                   data_df = pd.DataFrame(data_numpy, columns=x_train.columns)
+                  # Ensure the input data is in the same format as the training data
+                  data_df = data_df.astype(x_train.dtypes.to_dict()) 
                   return clf.predict_proba(data_df)
             
             #initialize LIME explainer
@@ -32,8 +34,7 @@ class Explainability:
                               data_row=x_test.values[i],
                               predict_fn=predict_fn_wrapper,
                               labels=[1], # Assuming binary classification with positive class as 1
-                              num_features=n_features,
-                              random_state=42
+                              num_features=n_features
                         )  
                         #extract values
                         base_value = exp.intercept[1]  # Base value for positive class
