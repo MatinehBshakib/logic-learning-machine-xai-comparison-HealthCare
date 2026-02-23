@@ -7,46 +7,66 @@ from ObesityOptimizer import ObesityOptimizer as ObesityOpt
 from DiabetesOptimizer import DiabetesOptimizer as DiabetesOpt
 from PostProcessor import PostProcessor
 import pandas as pd
-from sklearn.utils import shuffle  
 
 def main():
     loader = LoadData()
-    target_list = ["readmitted"]  # Change this to the desired target column name(s) for the desired dataset
-    dataset_name = "Diabetes_130_US"  # Change this to the desired dataset name
-    url = "diabetic_data.csv" # Change this to the desired dataset URL if needed, otherwise it will load from the local database
-    X, y = loader.load_file(file_path=url, target_cols=target_list)
-    le = LabelEncoder()
-    if dataset_name == "Hepatitis":
-        hcv = HCVOpt()
-        X, y_final = hcv.optimize(X, y, target_name=target_list[0])
-    elif dataset_name == "Obesity_level":
-        obesity = ObesityOpt()
-        X, y_final = obesity.optimize(X, y, target_name=target_list[0])
-    elif dataset_name == "Diabetes_130_US":
-        diabetes = DiabetesOpt()
-        X, y_final = diabetes.optimize(X, y, target_name=target_list[0])
-    else: 
-        y_encoded = le.fit_transform(y.values.ravel())
-        print(f"Mapping: 0 = {le.classes_[0]}, 1 = {le.classes_[1]}")
-        y_final = pd.DataFrame(y_encoded, index=y.index, columns=target_list)
-
-    X, y_final = shuffle(X, y_final, random_state=42)  # Shuffle the data to ensure randomness
-    SAMPLE_SIZE = 2500  # Adjustable number 
-        
-    if len(X) > SAMPLE_SIZE:
-        print(f"\n>>> Downsampling dataset from {len(X)} to {SAMPLE_SIZE} rows...")
-        X, _, y_final, _ = train_test_split(
-            X, y_final, 
+    target_list = ["readmitted"]  
+    dataset_name = "Diabetes_130_US"  
+    url = "diabetic_data.csv" 
+    
+    # 1. Load Raw Data
+    X_raw, y_raw = loader.load_file(file_path=url, target_cols=target_list)
+    
+    # 2. Downsample FIRST 
+    SAMPLE_SIZE = 2500  
+    if len(X_raw) > SAMPLE_SIZE:
+        print(f"\n>>> Downsampling dataset from {len(X_raw)} to {SAMPLE_SIZE} rows...")
+        X_raw, _, y_raw, _ = train_test_split(
+            X_raw, y_raw, 
             train_size=SAMPLE_SIZE, 
-            stratify=y_final, 
             random_state=42
         )
-    # 3. Split data 
-    x_train, x_test, y_train, y_test = loader.export_data_for_rulex(X, y_final, dataset_name=dataset_name)
-    # 4. Execute Strategy
-    strategy = SingleOutput(algo='xgb') # Change this to the desired algorithm ('xgb', 'rf')
+
+    # 3. Split into Train/Test BEFORE optimization to prevent Data Leakage
+    x_train_raw, x_test_raw, y_train_raw, y_test_raw = train_test_split(
+        X_raw, y_raw, test_size=0.3, random_state=42
+    )
+
+    # 4. Initialize the correct Optimizer
+    optimizer = None
+    if dataset_name == "Hepatitis":
+        optimizer = HCVOpt()
+    elif dataset_name == "Obesity_level":
+        optimizer = ObesityOpt()
+    elif dataset_name == "Diabetes_130_US":
+        optimizer = DiabetesOpt()
+
+    # 5. Optimize Train and Test Separately
+    if optimizer:
+        print("\n--- Optimizing Training Set ---")
+        x_train, y_train = optimizer.optimize(x_train_raw, y_train_raw, target_name=target_list[0], is_train=True)
+        
+        print("\n--- Optimizing Testing Set ---")
+        # is_train=False forces the test set to match the train set's columns perfectly!
+        x_test, y_test = optimizer.optimize(x_test_raw, y_test_raw, target_name=target_list[0], is_train=False)
+    else:
+        # Fallback for datasets without custom optimizers
+        le = LabelEncoder()
+        y_train_encoded = le.fit_transform(y_train_raw.values.ravel())
+        y_test_encoded = le.transform(y_test_raw.values.ravel())
+        
+        y_train = pd.DataFrame(y_train_encoded, index=y_train_raw.index, columns=target_list)
+        y_test = pd.DataFrame(y_test_encoded, index=y_test_raw.index, columns=target_list)
+        x_train, x_test = x_train_raw, x_test_raw
+
+    # 6. Export the cleanly processed data 
+    loader.export_data_for_rulex(x_train, x_test, y_train, y_test, dataset_name=dataset_name)
+
+    # 7. Execute Strategy
+    strategy = SingleOutput(algo='xgb') 
     strategy.execute(x_train, x_test, y_train, y_test)
     
+    # 8. Post Processing
     aggregator = PostProcessor()
     aggregator.aggregate_and_clean(database_name=dataset_name)
 

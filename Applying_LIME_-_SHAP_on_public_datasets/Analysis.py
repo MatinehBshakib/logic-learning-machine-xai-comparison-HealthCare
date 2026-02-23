@@ -62,11 +62,13 @@ class XAIComparativeAnalysis:
             rho_rs, _ = spearmanr(global_imp['Rulex_Rank'], global_imp['SHAP_Rank'])
             rho_rl, _ = spearmanr(global_imp['Rulex_Rank'], global_imp['LIME_Rank'])
             rho_sl, _ = spearmanr(global_imp['SHAP_Rank'],  global_imp['LIME_Rank']) 
-            
+            #We sort by index (Attribute name) to ensure the 'Top K' is deterministic during ties
+            def get_top_k_set(df, rank_col, k): 
+                return set(df.sort_values(by=[rank_col, 'Attribute'], ascending=[False, True]).head(k).index)
             # D. Metrics: Jaccard
-            top_rulex = set(global_imp.nlargest(top_k, 'Rulex_Rank').index)
-            top_shap  = set(global_imp.nlargest(top_k, 'SHAP_Rank').index)
-            top_lime  = set(global_imp.nlargest(top_k, 'LIME_Rank').index)
+            top_rulex = get_top_k_set(global_imp.reset_index(), 'Rulex_Rank', top_k)
+            top_shap  = get_top_k_set(global_imp.reset_index(), 'SHAP_Rank', top_k)
+            top_lime  = get_top_k_set(global_imp.reset_index(), 'LIME_Rank', top_k)
             
             def calc_jaccard(s1, s2):
                 return len(s1.intersection(s2)) / len(s1.union(s2)) if len(s1.union(s2)) > 0 else 0

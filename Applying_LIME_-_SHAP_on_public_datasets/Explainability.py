@@ -32,7 +32,8 @@ class Explainability:
                               data_row=x_test.values[i],
                               predict_fn=predict_fn_wrapper,
                               labels=[1], # Assuming binary classification with positive class as 1
-                              num_features=n_features
+                              num_features=n_features,
+                              random_state=42
                         )  
                         #extract values
                         base_value = exp.intercept[1]  # Base value for positive class

@@ -1,8 +1,18 @@
 import pandas as pd
 import numpy as np
 
-class DiabetesOptimizer:
-    def optimize(self, X, y=None, target_name='readmitted'):
+class DiabetesOptimizer: #Diabetes 130-US Hospitals for years 1999-2008 Data Set
+    def __init__(self):
+        self.train_columns = None
+        self.med_cols = ['metformin', 'repaglinide', 'nateglinide', 'chlorpropamide', 
+            'glimepiride', 'acetohexamide', 'glipizide', 'glyburide', 
+            'tolbutamide', 'pioglitazone', 'rosiglitazone', 'acarbose', 
+            'miglitol', 'troglitazone', 'tolazamide', 'examide', 
+            'citoglipton', 'insulin', 'glyburide-metformin', 
+            'glipizide-metformin', 'glimepiride-pioglitazone', 
+            'metformin-rosiglitazone', 'metformin-pioglitazone']
+        
+    def optimize(self, X, y=None, target_name='readmitted', is_train=True):
         print("\n>>> Starting Diabetes Dataset Optimization...")
         if y is not None:
             X = X.copy()
@@ -16,55 +26,44 @@ class DiabetesOptimizer:
         # Drop columns with too many missing values
         drop_cols = ['weight', 'payer_code', 'encounter_id', 'patient_nbr', 'medical_specialty']
         X = X.drop(columns=[c for c in drop_cols if c in X.columns], errors='ignore')
-
-        # Drop rows with missing critical info
-        subset_cols = ['race', 'diag_1', 'diag_2', 'diag_3', 'gender']
-        existing_subset = [c for c in subset_cols if c in X.columns]
-        X = X.dropna(subset=existing_subset)
+        if is_train: 
+            # Drop rows with missing critical info
+            subset_cols = ['race', 'diag_1', 'diag_2', 'diag_3', 'gender']
+            existing_subset = [c for c in subset_cols if c in X.columns]
+            X = X.dropna(subset=existing_subset)
         
-        # Drop Invalid Gender
-        if 'gender' in X.columns:
-            X = X[X['gender'] != 'Unknown/Invalid']
+            # Drop Invalid Gender
+            if 'gender' in X.columns:
+                X = X[X['gender'] != 'Unknown/Invalid']
 
-        # Remove "Dead" Patients (cannot be readmitted)
-        if 'discharge_disposition_id' in X.columns:
-            dead_ids = [11, 13, 14, 19, 20, 21]
-            # Ensure numeric comparison
-            X['discharge_disposition_id'] = pd.to_numeric(X['discharge_disposition_id'], errors='coerce')
-            X = X[~X['discharge_disposition_id'].isin(dead_ids)]
-
-        if target_name in X.columns:
-            # Extract the cleaned target column
-            y_clean = X[target_name]
-            X = X.drop(columns=[target_name])
-            
+            # Remove "Dead" Patients (cannot be readmitted)
+            if 'discharge_disposition_id' in X.columns:
+                dead_ids = [11, 13, 14, 19, 20, 21]
+                # Ensure numeric comparison
+                X['discharge_disposition_id'] = pd.to_numeric(X['discharge_disposition_id'], errors='coerce')
+                X = X[~X['discharge_disposition_id'].isin(dead_ids)]
+        
+        # 4. Target Transformation
+        y_final = None
+        if y is not None:
+            if target_name in X.columns:# If target is still in X (train), use it; else use y
+                y_series = X[target_name]
+            else:
             # Logic: <30 days = 1 (Early Readmission), All else = 0
-            y_new = y_clean.apply(lambda x: 1 if str(x) == '<30' else 0)
+                 y_series = y[target_name] if isinstance(y, pd.DataFrame) else y
+                 
+            y_new = y_series.apply(lambda x: 1 if str(x) == '<30' else 0)
             y_final = y_new.to_frame(name='Readmitted')
-        else:
-            print("Warning: Target column lost during optimization.")
-            y_final = y # Fallback (though sizes might mismatch if this happens)
-        
+            # Remove original target from features to prevent leakage
+            X = X.drop(columns=[target_name], errors='ignore')
         # A. Map Age
         if 'age' in X.columns:
-            age_map = {
-                '[0-10)': 0, '[10-20)': 1, '[20-30)': 2, '[30-40)': 3, 
-                '[40-50)': 4, '[50-60)': 5, '[60-70)': 6, '[70-80)': 7, 
-                '[80-90)': 8, '[90-100)': 9
-            }
+            age_map = {f'[{i*10}-{i*10+10})': i for i in range(10)}
             X['age'] = X['age'].map(age_map)
 
         # B. Map Medications (No/Steady/Up/Down -> 0/1/2)
-        med_cols = ['metformin', 'repaglinide', 'nateglinide', 'chlorpropamide', 
-                    'glimepiride', 'acetohexamide', 'glipizide', 'glyburide', 
-                    'tolbutamide', 'pioglitazone', 'rosiglitazone', 'acarbose', 
-                    'miglitol', 'troglitazone', 'tolazamide', 'examide', 
-                    'citoglipton', 'insulin', 'glyburide-metformin', 
-                    'glipizide-metformin', 'glimepiride-pioglitazone', 
-                    'metformin-rosiglitazone', 'metformin-pioglitazone']
-        
         med_map = {'No': 0, 'Steady': 1, 'Up': 2, 'Down': 2}
-        for col in med_cols:
+        for col in self.med_cols:
             if col in X.columns:
                 X[col] = X[col].map(med_map).fillna(0)
 
@@ -96,24 +95,16 @@ class DiabetesOptimizer:
         for col in diag_cols:
             if col in X.columns:
                 X[col] = X[col].apply(get_diag_category)
-                # One-Hot Encode
-                dummies = pd.get_dummies(X[col], prefix=col, dtype=int)
-                X = pd.concat([X, dummies], axis=1)
-                X = X.drop(columns=[col])
-
-        # E. One-Hot Encoding for remaining Nominal columns
-        nominal_cols = ['race', 'gender', 'max_glu_serum', 'A1Cresult']
-        for col in nominal_cols:
-            if col in X.columns:
-                dummies = pd.get_dummies(X[col], prefix=col, dtype=int)
-                X = pd.concat([X, dummies], axis=1)
-                X = X.drop(columns=[col])
-
-        # Final Numeric Check
-        X = X.apply(pd.to_numeric, errors='coerce').fillna(0)
-
-        print(f"Optimization Complete. Final Shape: {X.shape}")
-        if y_final is not None:
-            print(f"Target Distribution (1=<30 days, 0=Other):\n{y_final['Readmitted'].value_counts()}")
+        # E. One-Hot Encoding for Nominal Variables
+        nominal_cols = ['race', 'gender', 'max_glu_serum', 'A1Cresult', 'diag_1', 'diag_2', 'diag_3']
+        X = pd.get_dummies(X, columns=[c for c in nominal_cols if c in X.columns], dtype=int)
+        # F. Ensure consistent columns between train and test
+        if is_train:
+                    self.train_columns = X.columns
+        else:
+            X = X.reindex(columns=self.train_columns, fill_value=0)
+            
+        #Final conversion (keep NaNs for XGBoost)
+        X = X.apply(pd.to_numeric, errors='coerce')
         
         return X, y_final

@@ -94,38 +94,24 @@ class LoadData:
                   raise ValueError("target_cols must be specified when loading from CSV.")
             return self.advanced_imputation(X), y
       
-      def export_data_for_rulex(self, x, y, dataset_name=None, test_size=0.3, filename="rulex_ready_data.csv"):
-                  print(f"Preparing data for Rulex export (Test size: {test_size})...")
-                  full_filename = f"{dataset_name}_{filename}"
-                  
-                  # 1. Perform the split 
-                  x_train, x_test, y_train, y_test = train_test_split(
-                        x, y, test_size=test_size, random_state=42
-                  )
-                  
-                  # 2. Prepare export DataFrames
-                  if isinstance(y_train, pd.Series):
-                        y_train_df = y_train.to_frame(name='Target')
-                        y_test_df = y_test.to_frame(name='Target')
-                  else:
-                        y_train_df = y_train
-                        y_test_df = y_test
+      def export_data_for_rulex(self, x_train, x_test, y_train, y_test, dataset_name="Dataset", filename="rulex_ready_data.csv"):
+            full_filename = f"{dataset_name}_{filename}"
+            
+            # Prepare export DataFrames
+            y_train_df = y_train.to_frame(name='Target') if isinstance(y_train, pd.Series) else y_train.copy()
+            y_test_df = y_test.to_frame(name='Target') if isinstance(y_test, pd.Series) else y_test.copy()
 
-                  # Join features and targets
-                  train_df = pd.concat([x_train, y_train_df], axis=1)
-                  test_df = pd.concat([x_test, y_test_df], axis=1)
+            # Join features and targets
+            train_df = pd.concat([x_train.reset_index(drop=True), y_train_df.reset_index(drop=True)], axis=1)
+            test_df = pd.concat([x_test.reset_index(drop=True), y_test_df.reset_index(drop=True)], axis=1)
 
-                  # Add labels
-                  train_df['Set_Type'] = 'Train'
-                  test_df['Set_Type'] = 'Test'
-                  
-                  # Save to CSV
-                  full_df = pd.concat([train_df, test_df])
-                  
-                  full_df.index.name = 'id'
-                  full_df.reset_index(inplace=True)
-                  full_df.to_csv(full_filename, index=False)
-                  print(f"Data saved to {full_filename}. Train: {len(train_df)}, Test: {len(test_df)}")
-                  
-                  # 3. Return the splits to be used by Strategy
-                  return x_train, x_test, y_train, y_test
+            # Add labels
+            train_df['Set_Type'] = 'Train'
+            test_df['Set_Type'] = 'Test'
+            
+            # Save to CSV
+            full_df = pd.concat([train_df, test_df], ignore_index=True)
+            full_df.index.name = 'id'
+            full_df.to_csv(full_filename, index=True)
+            
+            print(f"Data saved to {full_filename}. Train: {len(train_df)}, Test: {len(test_df)}")
