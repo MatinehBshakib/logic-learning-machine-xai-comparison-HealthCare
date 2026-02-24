@@ -48,7 +48,7 @@ class DiabeticRetinopathyOptimizer:
             y_new = target_series.apply(lambda val: 1 if val == 1 else 0)
             
             # Brute-force rename
-            y_final = pd.DataFrame(y_new.values, index=raw_target.index, columns=['DR_Class'])
+            y_final = pd.DataFrame(y_new.values, index=raw_target.index, columns=['Class'])
 
         # Drop original target from features if present to prevent leakage
         if target_name in X.columns:

@@ -5,7 +5,7 @@ from Strategy import SingleOutput
 from HCVOptimizer import HCVOptimizer as HCVOpt
 from ObesityOptimizer import ObesityOptimizer as ObesityOpt
 from DiabetesOptimizer import DiabetesOptimizer as DiabetesOpt
-from Diabetic_Retinopathy import DiabeticRetinopathyOptimizer as DROpt
+from Diabetic_Retinopathy_Optimizer import DiabeticRetinopathyOptimizer as DROpt
 from PostProcessor import PostProcessor
 import pandas as pd
 

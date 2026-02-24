@@ -3,14 +3,14 @@ import os
 
 def main():
       analysis = XAIComparativeAnalysis()
-      base_folder = 'outputs'
+      base_folder = 'outputs__'
       # 1. Update this list with ALL your file names
       files_to_process = [
       #'Breast_Cancer.csv', 
       #'CDC_Diabetes.csv',
       #'Cervical_Cancer.csv', 
       'Diabetes1999-2008.csv',
-      #'Diabetic_Retinopathy_Debrecen.csv',
+      'Diabetic_Retinopathy_Debrecen.csv',
       #'Glioma_Grading_Clinical.csv',
       'Hepatit_C_Virus.csv',
       #'Myocardinal_Infraction.csv',
