@@ -11,9 +11,9 @@ import pandas as pd
 
 def main():
     loader = LoadData()
-    target_list = ["Class"]  
-    dataset_name = "Diabetic_Retinopathy"  
-    url = "messidor_features.arff" 
+    target_list = ["Grade"]  
+    dataset_name = "Glioma_Grading"  
+    url = "TCGA_InfoWithGrade.csv" 
     
     # 1. Load Raw Data
     X_raw, y_raw = loader.load_file(file_path=url, target_cols=target_list)
@@ -30,7 +30,7 @@ def main():
 
     # 3. Split into Train/Test BEFORE optimization to prevent Data Leakage
     x_train_raw, x_test_raw, y_train_raw, y_test_raw = train_test_split(
-        X_raw, y_raw, test_size=0.3, random_state=42
+        X_raw, y_raw, test_size=0.3,stratify=y_raw, random_state=42
     )
 
     # 4. Initialize the correct Optimizer
@@ -66,10 +66,10 @@ def main():
     loader.export_data_for_rulex(x_train, x_test, y_train, y_test, dataset_name=dataset_name)
 
     # 7. Execute Strategy
-    counts = y_train.iloc[:, 0].value_counts()
+    '''counts = y_train.iloc[:, 0].value_counts()
     imbalance_ratio = counts[0] / counts[1] if 1 in counts and counts[1] > 0 else 1
-    print(f"\n>>> Recommended XGBoost scale_pos_weight: {imbalance_ratio:.2f}")
-    strategy = SingleOutput(algo='xgb', scale_pos_weight=imbalance_ratio) 
+    print(f"\n>>> Recommended Random Forest scale_pos_weight: {imbalance_ratio:.2f}")'''
+    strategy = SingleOutput(algo='rf') 
     strategy.execute(x_train, x_test, y_train, y_test)
     
     # 8. Post Processing

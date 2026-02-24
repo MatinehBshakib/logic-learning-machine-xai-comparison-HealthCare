@@ -56,5 +56,5 @@ class HCVOptimizer:
         else:
             X = X.reindex(columns=self.train_columns, fill_value=0)
 
-        X = X.apply(pd.to_numeric, errors='coerce')
+        X = X.apply(pd.to_numeric, errors='coerce').fillna(0)
         return X, y_final
