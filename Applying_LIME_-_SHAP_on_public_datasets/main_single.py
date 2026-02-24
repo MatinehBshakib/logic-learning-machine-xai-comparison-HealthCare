@@ -5,14 +5,15 @@ from Strategy import SingleOutput
 from HCVOptimizer import HCVOptimizer as HCVOpt
 from ObesityOptimizer import ObesityOptimizer as ObesityOpt
 from DiabetesOptimizer import DiabetesOptimizer as DiabetesOpt
+from Diabetic_Retinopathy import DiabeticRetinopathyOptimizer as DROpt
 from PostProcessor import PostProcessor
 import pandas as pd
 
 def main():
     loader = LoadData()
-    target_list = ["NObeyesdad"]  
-    dataset_name = "Obesity_level"  
-    url = "ObesityDataSet_raw_and_data_sinthetic.csv" 
+    target_list = ["Class"]  
+    dataset_name = "Diabetic_Retinopathy"  
+    url = "messidor_features.arff" 
     
     # 1. Load Raw Data
     X_raw, y_raw = loader.load_file(file_path=url, target_cols=target_list)
@@ -40,6 +41,8 @@ def main():
         optimizer = ObesityOpt()
     elif dataset_name == "Diabetes_130_US":
         optimizer = DiabetesOpt()
+    elif dataset_name == "Diabetic_Retinopathy":
+        optimizer = DROpt()
 
     # 5. Optimize Train and Test Separately
     if optimizer:
