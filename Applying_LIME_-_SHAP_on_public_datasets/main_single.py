@@ -1,3 +1,5 @@
+from unittest import loader
+
 from sklearn.model_selection import train_test_split
 from Load import LoadData
 from sklearn.preprocessing import LabelEncoder
@@ -32,11 +34,14 @@ def main():
     x_train_raw, x_test_raw, y_train_raw, y_test_raw = train_test_split(
         X_raw, y_raw, test_size=0.3,stratify=y_raw, random_state=42
     )
+    x_train_raw = loader.fit_imputer(x_train_raw)   # Learns mean/mode from train ONLY
+    x_test_raw  = loader.apply_imputer(x_test_raw)  # Applies those same statistics to test
+    
     # Reset indices to ensure clean merges later on
     x_train_raw = x_train_raw.reset_index(drop=True)
     x_test_raw = x_test_raw.reset_index(drop=True)
-    y_train = y_train.reset_index(drop=True)
-    y_test = y_test.reset_index(drop=True)
+    y_train_raw = y_train_raw.reset_index(drop=True)
+    y_test_raw = y_test_raw.reset_index(drop=True)
     
     # 4. Initialize the correct Optimizer
     optimizer = None

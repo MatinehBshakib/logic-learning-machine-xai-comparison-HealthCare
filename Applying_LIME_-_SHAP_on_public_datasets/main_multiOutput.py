@@ -16,6 +16,10 @@ def main():
     
     # 2. Split Data 
     x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+    
+    x_train = loader.fit_imputer(x_train)   # Learns mean/mode from train ONLY
+    x_test = loader.apply_imputer(x_test)  # Applies those same statistics to test
+    # Reset indices to ensure clean merges later on
     x_train = x_train.reset_index(drop=True)
     x_test= x_test.reset_index(drop=True)
     y_train = y_train.reset_index(drop=True)
