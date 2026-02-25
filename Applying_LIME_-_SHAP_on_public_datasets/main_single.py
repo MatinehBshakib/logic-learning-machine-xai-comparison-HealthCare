@@ -12,11 +12,17 @@ import pandas as pd
 
 def main():
     loader = LoadData()
-    for dataset_name, url, target_list in loader.load_dataset_config("dataset_config.json"):
+    for dataset_name, source, target_list in loader.load_dataset_config("dataset_config.json"):
         print(f"\n>>> Processing: {dataset_name}")
-        
-        # 1. Load Raw Data
-        X_raw, y_raw = loader.load_file(file_path=url, target_cols=target_list)
+        # 1. Load file (Dynamic Checking)
+        if str(source).isdigit():
+            # If the source is just numbers treat it as an OpenML ID
+            print(f"Loading via OpenML link (ID: {source})...")
+            X_raw, y_raw = loader.load_link(data_id=int(source), target_cols=target_list)
+        else:
+            # Otherwise, treat it as a local file path
+            print(f"Loading via local file ({source})...")
+            X_raw, y_raw = loader.load_file(file_path=source, target_cols=target_list)
         
         # 2. Downsample FIRST 
         SAMPLE_SIZE = 2500  
@@ -74,10 +80,16 @@ def main():
         loader.export_data_for_rulex(x_train, x_test, y_train, y_test, dataset_name=dataset_name)
 
         # 7. Execute Strategy
-        '''counts = y_train.iloc[:, 0].value_counts()
+        counts = y_train.iloc[:, 0].value_counts()
         imbalance_ratio = counts[0] / counts[1] if 1 in counts and counts[1] > 0 else 1
-        print(f"\n>>> Recommended Random Forest scale_pos_weight: {imbalance_ratio:.2f}")'''
-        strategy = SingleOutput(algo='rf') 
+        print(f"\n>>> Recommended Random Forest scale_pos_weight: {imbalance_ratio:.2f}")
+        
+        if dataset_name == "Glioma_Grading":
+            strategy = SingleOutput(algo='rf')
+        elif dataset_name == "Breast_Cancer":
+            strategy = SingleOutput(algo='rf')
+        else:
+            strategy = SingleOutput(algo='xgb', scale_pos_weight=imbalance_ratio) 
         strategy.execute(x_train, x_test, y_train, y_test)
         
         # 8. Post Processing

@@ -28,5 +28,17 @@
     "target_list": [
       "Grade"
     ]
+  }, 
+  "CDC_Diabetes": {
+    "url": "diabetes_binary_health_indicators_BRFSS2015.csv",
+    "target_list": [
+      "Diabetes_binary"
+    ]
+  },
+  "Breast_Cancer": {
+    "id": "43611",
+    "target_list": [
+      "class"
+    ]
   }
 }
