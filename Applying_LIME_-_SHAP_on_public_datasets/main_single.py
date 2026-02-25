@@ -40,11 +40,14 @@ def main():
         x_train_raw = loader.fit_imputer(x_train_raw)   # Learns mean/mode from train ONLY
         x_test_raw  = loader.apply_imputer(x_test_raw)  # Applies those same statistics to test
         
-        # Reset indices to ensure clean merges later on
+        # Re-number Train indices to start at 0
         x_train_raw = x_train_raw.reset_index(drop=True)
-        x_test_raw = x_test_raw.reset_index(drop=True)
         y_train_raw = y_train_raw.reset_index(drop=True)
-        y_test_raw = y_test_raw.reset_index(drop=True)
+        
+        # Make Test indices start exactly where Train left off!
+        start_idx = len(x_train_raw)
+        x_test_raw.index = range(start_idx, start_idx + len(x_test_raw))
+        y_test_raw.index = range(start_idx, start_idx + len(y_test_raw))
         
         # 4. Initialize the correct Optimizer
         optimizer = None

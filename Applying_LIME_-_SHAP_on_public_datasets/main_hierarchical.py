@@ -18,11 +18,15 @@ def main():
     
     x_train = loader.fit_imputer(x_train)   # Learns mean/mode from train ONLY
     x_test = loader.apply_imputer(x_test)  # Applies those same statistics to test
-    # Reset indices to ensure clean merges later on
+    
+    # Re-number Train indices to start at 0
     x_train = x_train.reset_index(drop=True)
-    x_test = x_test.reset_index(drop=True)
     y_train = y_train.reset_index(drop=True)
-    y_test = y_test.reset_index(drop=True)
+    
+    # Make Test indices start exactly where Train left off!
+    start_idx = len(x_train)
+    x_test.index = range(start_idx, start_idx + len(x_test))
+    y_test.index = range(start_idx, start_idx + len(y_test)) 
     
     if dataset_name == "Myocardial_Infarction":
         

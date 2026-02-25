@@ -159,13 +159,13 @@ class LoadData:
         y_train_df = y_train.to_frame(name='Target') if isinstance(y_train, pd.Series) else y_train.copy()
         y_test_df  = y_test.to_frame(name='Target')  if isinstance(y_test,  pd.Series) else y_test.copy()
 
-        train_df = pd.concat([x_train.reset_index(drop=True), y_train_df.reset_index(drop=True)], axis=1)
-        test_df  = pd.concat([x_test.reset_index(drop=True),  y_test_df.reset_index(drop=True)],  axis=1)
+        train_df = pd.concat([x_train, y_train_df], axis=1)
+        test_df  = pd.concat([x_test,  y_test_df],  axis=1)
 
         train_df['Set_Type'] = 'Train'
         test_df['Set_Type']  = 'Test'
 
-        full_df = pd.concat([train_df, test_df], ignore_index=True)
+        full_df = pd.concat([train_df, test_df])
         full_df.index.name = 'id'
         full_df.to_csv(full_filename, index=True)
 
