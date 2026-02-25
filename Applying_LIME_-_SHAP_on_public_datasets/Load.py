@@ -108,7 +108,7 @@ class LoadData:
         return X, y
 
     def load_link(self, data_id, target_cols=None):
-        data = fetch_openml(data_id=data_id, version='active', as_frame=True)
+        data = fetch_openml(data_id=data_id, version='active', as_frame=True, parser='auto')
         df = data.frame.copy()
 
         if 'id' in df.columns:

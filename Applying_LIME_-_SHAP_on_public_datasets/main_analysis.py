@@ -6,14 +6,14 @@ def main():
       base_folder = 'outputs__'
       # 1. Update this list with ALL your file names
       files_to_process = [
-      #'Breast_Cancer.csv', 
-      #'CDC_Diabetes.csv',
+      'Breast_Cancer.csv', 
+      'CDC_Diabetes.csv',
       'Cervical_Cancer.csv', 
       'Diabetes1999-2008.csv',
       'Diabetic_Retinopathy_Debrecen.csv',
       'Glioma_Grading_Clinical.csv',
       'Hepatit_C_Virus.csv',
-      #'Myocardinal_Infraction.csv',
+      'Myocardial_Infarction.csv',
       'Obesity_level.csv',
       ]
       files_to_process = [os.path.join(base_folder, f) for f in files_to_process]

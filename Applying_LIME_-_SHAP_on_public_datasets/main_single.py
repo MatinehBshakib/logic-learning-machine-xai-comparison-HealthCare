@@ -1,4 +1,3 @@
-from unittest import loader
 from sklearn.model_selection import train_test_split
 from Load import LoadData
 from sklearn.preprocessing import LabelEncoder
