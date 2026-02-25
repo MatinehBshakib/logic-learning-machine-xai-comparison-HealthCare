@@ -16,6 +16,11 @@ def main():
     # 2. Split Data (Using train_test_split)
     x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
     
+    x_train = x_train.reset_index(drop=True)
+    x_test = x_test.reset_index(drop=True)
+    y_train = y_train.reset_index(drop=True)
+    y_test = y_test.reset_index(drop=True)
+    
     # 3. ---> THE OPTIMIZER ROUTING BLOCK <---
     print(f"\n>>> Routing to optimizer for: {dataset_name}")
     

@@ -32,7 +32,12 @@ def main():
     x_train_raw, x_test_raw, y_train_raw, y_test_raw = train_test_split(
         X_raw, y_raw, test_size=0.3,stratify=y_raw, random_state=42
     )
-
+    # Reset indices to ensure clean merges later on
+    x_train_raw = x_train_raw.reset_index(drop=True)
+    x_test_raw = x_test_raw.reset_index(drop=True)
+    y_train = y_train.reset_index(drop=True)
+    y_test = y_test.reset_index(drop=True)
+    
     # 4. Initialize the correct Optimizer
     optimizer = None
     if dataset_name == "Hepatitis":
