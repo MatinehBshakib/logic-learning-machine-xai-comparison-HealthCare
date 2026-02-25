@@ -24,14 +24,7 @@ def main():
     y_train = y_train.reset_index(drop=True)
     y_test = y_test.reset_index(drop=True)
     
-    # 3. ---> THE OPTIMIZER ROUTING BLOCK <---
-    print(f"\n>>> Routing to optimizer for: {dataset_name}")
-    
     if dataset_name == "Myocardial_Infarction":
-        # If you write a MyocardialOptimizer in the future, it plugs in right here!
-        # opt = MyocardialOptimizer()
-        # x_train, _ = opt.optimize(x_train, y=None, is_train=True)
-        # x_test, _ = opt.optimize(x_test, y=None, is_train=False)
         
         # Temporary fallback for safety
         x_train = x_train.apply(pd.to_numeric, errors='coerce').fillna(0)

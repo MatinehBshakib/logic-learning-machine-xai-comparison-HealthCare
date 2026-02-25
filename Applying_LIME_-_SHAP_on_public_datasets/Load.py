@@ -174,7 +174,17 @@ class LoadData:
     def load_dataset_config(self, config_path="datasets_config.json"):
         with open(config_path, "r") as f:
             config = json.load(f)
+            
         for dataset_name, entry in config.items():
             if dataset_name == "active":
                 continue
-            yield dataset_name, entry["url"], entry["target_list"]
+            
+            # Dynamically check if the dataset uses an OpenML 'id' or a file 'url'
+            if "id" in entry:
+                source = str(entry["id"])  # Convert to string so .isdigit() works in main
+            elif "url" in entry:
+                source = str(entry["url"])
+            else:
+                raise KeyError(f"Dataset '{dataset_name}' must have either an 'id' or 'url' key in your JSON.")
+            
+            yield dataset_name, source, entry["target_list"]
