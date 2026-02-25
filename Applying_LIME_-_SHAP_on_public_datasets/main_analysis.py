@@ -8,10 +8,10 @@ def main():
       files_to_process = [
       #'Breast_Cancer.csv', 
       #'CDC_Diabetes.csv',
-      #'Cervical_Cancer.csv', 
+      'Cervical_Cancer.csv', 
       'Diabetes1999-2008.csv',
       'Diabetic_Retinopathy_Debrecen.csv',
-      #'Glioma_Grading_Clinical.csv',
+      'Glioma_Grading_Clinical.csv',
       'Hepatit_C_Virus.csv',
       #'Myocardinal_Infraction.csv',
       'Obesity_level.csv',
