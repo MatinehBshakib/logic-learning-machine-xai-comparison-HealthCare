@@ -2,9 +2,8 @@ import numpy as np
 import pandas as pd
 from sklearn.impute import SimpleImputer
 from sklearn.datasets import fetch_openml
-from sklearn.model_selection import train_test_split
 from scipy.io import arff
-
+import json
 
 class LoadData:
 
@@ -171,3 +170,11 @@ class LoadData:
         full_df.to_csv(full_filename, index=True)
 
         print(f"Data saved to '{full_filename}'. Train: {len(train_df)}, Test: {len(test_df)}")
+        
+    def load_dataset_config(self, config_path="datasets_config.json"):
+        with open(config_path, "r") as f:
+            config = json.load(f)
+        for dataset_name, entry in config.items():
+            if dataset_name == "active":
+                continue
+            yield dataset_name, entry["url"], entry["target_list"]

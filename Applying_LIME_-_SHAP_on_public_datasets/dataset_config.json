@@ -1,0 +1,32 @@
+{
+  "Hepatitis": {
+    "url": "HCV-Egy-Data.csv",
+    "target_list": [
+      "Baselinehistological staging"
+    ]
+  },
+  "Obesity_level": {
+    "url": "ObesityDataSet_raw_and_data_sinthetic.csv",
+    "target_list": [
+      "NObeyesdad"
+    ]
+  },
+  "Diabetes_130_US": {
+    "url": "diabetic_data.csv",
+    "target_list": [
+      "readmitted"
+    ]
+  },
+  "Diabetic_Retinopathy": {
+    "url": "messidor_features.arff",
+    "target_list": [
+      "Class"
+    ]
+  },
+  "Glioma_Grading": {
+    "url": "TCGA_InfoWithGrade.csv",
+    "target_list": [
+      "Grade"
+    ]
+  }
+}
