@@ -63,9 +63,9 @@ class XAIComparativeAnalysis:
             lime_noisy  = global_imp['LIME_Val']  + np.random.rand(len(global_imp)) * epsilon
             
             # Rank with method='first' to guarantee entirely unique integer ranks
-            global_imp['Rulex_Rank'] = rulex_noisy.rank(method='first', ascending=True)
-            global_imp['SHAP_Rank']  = shap_noisy.rank(method='first', ascending=True)
-            global_imp['LIME_Rank']  = lime_noisy.rank(method='first', ascending=True)
+            global_imp['Rulex_Rank'] = rulex_noisy.rank(method='first', ascending=False)
+            global_imp['SHAP_Rank']  = shap_noisy.rank(method='first', ascending=False)
+            global_imp['LIME_Rank']  = lime_noisy.rank(method='first', ascending=False)
             
             # C. Metrics: Spearman
             rho_rs, _ = spearmanr(global_imp['Rulex_Rank'], global_imp['SHAP_Rank'])
@@ -73,7 +73,7 @@ class XAIComparativeAnalysis:
             rho_sl, _ = spearmanr(global_imp['SHAP_Rank'],  global_imp['LIME_Rank']) 
             #We sort by index (Attribute name) to ensure the 'Top K' is deterministic during ties
             def get_top_k_set(df, rank_col, k): 
-                return set(df.sort_values(by=[rank_col, 'Attribute'], ascending=[True, True]).head(k).index)
+                return set(df.sort_values(by=[rank_col, 'Attribute'], ascending=[True, True]).head(k)['Attribute'])
             # D. Metrics: Jaccard
             top_rulex = get_top_k_set(global_imp.reset_index(), 'Rulex_Rank', top_k)
             top_shap  = get_top_k_set(global_imp.reset_index(), 'SHAP_Rank', top_k)
