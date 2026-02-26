@@ -52,11 +52,20 @@ class XAIComparativeAnalysis:
             
             # A. Prepare Data 
             global_imp = subset[['Attribute', 'Rulex_Val', 'SHAP_Val', 'LIME_Val']].set_index('Attribute')
+        
+            # B. Ranking (Add Epsilon to break ties deterministically)
+            np.random.seed(42) # Ensure reproducible tie-breaking
+            epsilon = 1e-12
             
-            # B. Ranking (Calculated from Scratch, method='average')
-            global_imp['Rulex_Rank'] = global_imp['Rulex_Val'].rank(method='average', ascending=True)
-            global_imp['SHAP_Rank']  = global_imp['SHAP_Val'].rank(method='average', ascending=True)
-            global_imp['LIME_Rank']  = global_imp['LIME_Val'].rank(method='average', ascending=True)
+            # Add tiny noise to break ties
+            rulex_noisy = global_imp['Rulex_Val'] + np.random.rand(len(global_imp)) * epsilon
+            shap_noisy  = global_imp['SHAP_Val']  + np.random.rand(len(global_imp)) * epsilon
+            lime_noisy  = global_imp['LIME_Val']  + np.random.rand(len(global_imp)) * epsilon
+            
+            # Rank with method='first' to guarantee entirely unique integer ranks
+            global_imp['Rulex_Rank'] = rulex_noisy.rank(method='first', ascending=True)
+            global_imp['SHAP_Rank']  = shap_noisy.rank(method='first', ascending=True)
+            global_imp['LIME_Rank']  = lime_noisy.rank(method='first', ascending=True)
             
             # C. Metrics: Spearman
             rho_rs, _ = spearmanr(global_imp['Rulex_Rank'], global_imp['SHAP_Rank'])

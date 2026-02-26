@@ -85,6 +85,9 @@ def main():
             # (In case a category existed in train but not test, or vice versa)
             x_train, x_test = x_train.align(x_test, join='left', axis=1, fill_value=0)
             
+            x_train = x_train.apply(pd.to_numeric, errors='coerce').fillna(0)
+            x_test = x_test.apply(pd.to_numeric, errors='coerce').fillna(0)
+            
         # Validate that all data is numeric before proceeding    
         loader.validate_numeric(dataset_name, x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test)
         # 6. Export the cleanly processed data 
