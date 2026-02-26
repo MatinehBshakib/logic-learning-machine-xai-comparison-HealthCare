@@ -77,14 +77,18 @@ class Explainability:
             # We select [:, :, 1] to get the explanation for the "Positive" class.
             if len(shap_values_all.values.shape) == 2: #handle xgboost single output case
                   shap_values = shap_values_all.values
-                  base_values = shap_values_all.base_values
+                  raw_base_values = shap_values_all.base_values
             else:
                   # handle random forest multi-class case
                   shap_values = shap_values_all.values[:,:,1]
-                  base_values = shap_values_all.base_values[:,1] # Base values for positive class
-            # Normalize base_values to be a list/array of length N
-            if not hasattr(base_values, "__iter__"):
-                  base_values = np.repeat(base_values, len(x_test))
+                  bv = shap_values_all.base_values
+                  # Normalize base_values to be a list/array of length N
+                  raw_base_values = bv[:, 1] if len(bv.shape) == 2 else bv[1] 
+            if np.isscalar(raw_base_values) or (isinstance(raw_base_values, np.ndarray) and raw_base_values.size == 1):
+                  # Extract the single number and repeat it N times
+                  base_values = np.repeat(np.squeeze(raw_base_values), len(x_test))
+            else:
+                  base_values = raw_base_values       
             
             shap_rows = []
             feature_names = x_train.columns.tolist()
