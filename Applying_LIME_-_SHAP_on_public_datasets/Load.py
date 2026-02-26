@@ -155,7 +155,7 @@ class LoadData:
                                filename="rulex_ready_data.csv"):
           
         full_filename = f"{dataset_name}_{filename}"
-
+        # Combine train and test back together with a 'Set_Type' column to indicate origin
         y_train_df = y_train.to_frame(name='Target') if isinstance(y_train, pd.Series) else y_train.copy()
         y_test_df  = y_test.to_frame(name='Target')  if isinstance(y_test,  pd.Series) else y_test.copy()
 
