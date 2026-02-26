@@ -188,3 +188,12 @@ class LoadData:
                 raise KeyError(f"Dataset '{dataset_name}' must have either an 'id' or 'url' key in your JSON.")
             
             yield dataset_name, source, entry["target_list"]
+    
+    def validate_numeric(self, dataset_name, **kwargs):
+        """Ensures all provided dataframes/series are strictly numeric."""
+        for name, data in kwargs.items():
+            df_check = data.to_frame() if isinstance(data, pd.Series) else data
+            bad_cols = df_check.select_dtypes(exclude=['number', 'bool']).columns.tolist()
+            
+            if bad_cols:
+                raise ValueError(f"CRITICAL ERROR: {name} in '{dataset_name}' contains non-numeric columns: {bad_cols}.")

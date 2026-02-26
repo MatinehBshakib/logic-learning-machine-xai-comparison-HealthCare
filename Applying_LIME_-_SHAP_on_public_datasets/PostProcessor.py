@@ -14,6 +14,7 @@ class PostProcessor:
             return
 
         all_data = []
+        files_to_delete = []
 
         for shap_path in shap_files:
             # Determine the corresponding LIME filename
@@ -52,10 +53,10 @@ class PostProcessor:
                 all_data.append(merged_df)
 
                 # 5. Delete Original Files
-                os.remove(shap_path)
+                files_to_delete.append(shap_path)
                 if os.path.exists(lime_path):
-                    os.remove(lime_path)
-                print(f"Processed and deleted: {context_name}")
+                    files_to_delete.append(lime_path)
+                print(f"Processed and marked for deletion: {context_name}")
 
             except Exception as e:
                 print(f"Error processing {shap_path}: {e}")
@@ -73,5 +74,13 @@ class PostProcessor:
             
             final_df.to_csv(output_filename, index=False)
             print(f"\nSUCCESS: All explanations merged into '{output_filename}'.")
+            
+            print("Cleaning up temporary files...")
+            for file_path in files_to_delete:
+                try:
+                    os.remove(file_path)
+                except Exception as e:
+                    print(f"Could not delete {file_path}: {e}")
+            print("Cleanup complete.")
         else:
             print("No data collected.")

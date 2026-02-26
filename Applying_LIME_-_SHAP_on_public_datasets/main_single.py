@@ -73,11 +73,20 @@ def main():
             le = LabelEncoder()
             y_train_encoded = le.fit_transform(y_train_raw.values.ravel())
             y_test_encoded = le.transform(y_test_raw.values.ravel())
-            
+        
             y_train = pd.DataFrame(y_train_encoded, index=y_train_raw.index, columns=target_list)
             y_test = pd.DataFrame(y_test_encoded, index=y_test_raw.index, columns=target_list)
-            x_train, x_test = x_train_raw, x_test_raw
-
+            
+            # Automatically converts text columns into binary numeric columns (0 and 1)
+            x_train = pd.get_dummies(x_train_raw, drop_first=True, dtype=int)
+            x_test = pd.get_dummies(x_test_raw, drop_first=True, dtype=int)
+            
+            # Ensure the test set has the exact same columns as the train set
+            # (In case a category existed in train but not test, or vice versa)
+            x_train, x_test = x_train.align(x_test, join='left', axis=1, fill_value=0)
+            
+        # Validate that all data is numeric before proceeding    
+        loader.validate_numeric(dataset_name, x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test)
         # 6. Export the cleanly processed data 
         loader.export_data_for_rulex(x_train, x_test, y_train, y_test, dataset_name=dataset_name)
 
