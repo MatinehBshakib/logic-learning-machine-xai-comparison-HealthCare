@@ -57,9 +57,9 @@ class HierarchicalStrategy(BaseStrategy):
                   
                   print(f"Training Gatekeeper for {category}...")
                   if self.algo == 'xgb':
-                        gate_model = xgb.XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=42)
+                        gate_model = xgb.XGBClassifier(eval_metric='logloss', random_state=42, scale_pos_weight=self.scale_pos_weight)
                   else:
-                        gate_model = RandomForestClassifier(random_state=42)
+                        gate_model = RandomForestClassifier(class_weight='balanced', random_state=42)
                   gate_model.fit(x_train, y_train_gate)
                   #Evaluate 
                   gate_pred = gate_model.predict(x_test)
@@ -71,13 +71,13 @@ class HierarchicalStrategy(BaseStrategy):
                   
                   # Base model for MultiOutput
                   if self.algo == 'xgb':
-                        base = xgb.XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=42)
+                        base = xgb.XGBClassifier(eval_metric='logloss', random_state=42, scale_pos_weight=self.scale_pos_weight)
                   else:
-                        base = RandomForestClassifier(random_state=42)
+                        base = RandomForestClassifier(class_weight='balanced', random_state=42)
                   
                   spec_model = None  # Initialize as None
                   if len(x_spec_train) > 5:
-                        base = xgb.XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=42) if self.algo == 'xgb' else RandomForestClassifier(random_state=42)
+                        base = xgb.XGBClassifier(eval_metric='logloss', random_state=42, scale_pos_weight=self.scale_pos_weight) if self.algo == 'xgb' else RandomForestClassifier(random_state=42)
                         spec_model = MultiOutputClassifier(base)
                         spec_model.fit(x_spec_train, y_spec_train)
                         
@@ -127,9 +127,9 @@ class MultiLabelStrategy(BaseStrategy):
             
             # Define Base Model
             if self.algo == 'xgb':
-                  base = xgb.XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=42)
+                  base = xgb.XGBClassifier(eval_metric='logloss', random_state=42, scale_pos_weight=self.scale_pos_weight)
             else:
-                  base = RandomForestClassifier(random_state=42)
+                  base = RandomForestClassifier(class_weight='balanced', random_state=42)
             
             # Wrap in MultiOutputClassifier (Fits one model per target column)
             clf = MultiOutputClassifier(base)
@@ -148,7 +148,7 @@ class MultiLabelStrategy(BaseStrategy):
                   y_test_col = y_test.iloc[:, i]
                   y_pred_col = estimator.predict(x_test)
                   acc = accuracy_score(y_test_col, y_pred_col)
-                  print(f"    Accuracy for {col_name}: {acc:.4f}")
+                  print(f"Accuracy for {col_name}: {acc:.4f}")
                   
                   # Generate SHAP
                   # We pass the specific estimator for this column, not the whole wrapper
