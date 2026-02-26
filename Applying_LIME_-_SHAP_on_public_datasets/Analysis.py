@@ -64,7 +64,7 @@ class XAIComparativeAnalysis:
             rho_sl, _ = spearmanr(global_imp['SHAP_Rank'],  global_imp['LIME_Rank']) 
             #We sort by index (Attribute name) to ensure the 'Top K' is deterministic during ties
             def get_top_k_set(df, rank_col, k): 
-                return set(df.sort_values(by=[rank_col, 'Attribute'], ascending=[False, True]).head(k).index)
+                return set(df.sort_values(by=[rank_col, 'Attribute'], ascending=[True, True]).head(k).index)
             # D. Metrics: Jaccard
             top_rulex = get_top_k_set(global_imp.reset_index(), 'Rulex_Rank', top_k)
             top_shap  = get_top_k_set(global_imp.reset_index(), 'SHAP_Rank', top_k)
