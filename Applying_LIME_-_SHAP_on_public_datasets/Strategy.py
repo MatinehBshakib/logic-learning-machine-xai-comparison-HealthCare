@@ -57,7 +57,7 @@ class HierarchicalStrategy(BaseStrategy):
                   
                   print(f"Training Gatekeeper for {category}...")
                   if self.algo == 'xgb':
-                        gate_model = xgb.XGBClassifier(eval_metric='logloss', random_state=42, scale_pos_weight=self.scale_pos_weight)
+                        gate_model = xgb.XGBClassifier(eval_metric='logloss', random_state=42)
                   else:
                         gate_model = RandomForestClassifier(class_weight='balanced', random_state=42)
                   gate_model.fit(x_train, y_train_gate)
@@ -71,13 +71,13 @@ class HierarchicalStrategy(BaseStrategy):
                   
                   # Base model for MultiOutput
                   if self.algo == 'xgb':
-                        base = xgb.XGBClassifier(eval_metric='logloss', random_state=42, scale_pos_weight=self.scale_pos_weight)
+                        base = xgb.XGBClassifier(eval_metric='logloss', random_state=42)
                   else:
                         base = RandomForestClassifier(class_weight='balanced', random_state=42)
                   
                   spec_model = None  # Initialize as None
                   if len(x_spec_train) > 5:
-                        base = xgb.XGBClassifier(eval_metric='logloss', random_state=42, scale_pos_weight=self.scale_pos_weight) if self.algo == 'xgb' else RandomForestClassifier(random_state=42)
+                        base = xgb.XGBClassifier(eval_metric='logloss', random_state=42) if self.algo == 'xgb' else RandomForestClassifier(class_weight='balanced', random_state=42)
                         spec_model = MultiOutputClassifier(base)
                         spec_model.fit(x_spec_train, y_spec_train)
                         
@@ -127,7 +127,7 @@ class MultiLabelStrategy(BaseStrategy):
             
             # Define Base Model
             if self.algo == 'xgb':
-                  base = xgb.XGBClassifier(eval_metric='logloss', random_state=42, scale_pos_weight=self.scale_pos_weight)
+                  base = xgb.XGBClassifier(eval_metric='logloss', random_state=42)
             else:
                   base = RandomForestClassifier(class_weight='balanced', random_state=42)
             

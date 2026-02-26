@@ -38,8 +38,10 @@ class Explainability:
                               num_features=n_features
                         )  
                         #extract values
-                        base_value = exp.intercept[1]  # Base value for positive class
-                        local_weight = dict(exp.local_exp[1])  # Local weights for positive class
+                        # If 1 is missing, base_value becomes 0.0
+                        base_value = exp.intercept.get(1, 0.0) 
+                        # If 1 is missing, it returns an empty list [], which dict() turns into an empty {}
+                        local_weight = dict(exp.local_exp.get(1, []))
                         current_id = x_test.index[i]  # Get the original index of the instance
                   
                         for feat_idx, feat_name in enumerate(x_train.columns):
