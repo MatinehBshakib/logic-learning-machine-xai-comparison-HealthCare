@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from scipy.stats import spearmanr
+from scipy.stats import spearmanr, kendalltau
 import os
 
 class XAIComparativeAnalysis:
@@ -71,10 +71,21 @@ class XAIComparativeAnalysis:
             rho_rs, _ = spearmanr(global_imp['Rulex_Rank'], global_imp['SHAP_Rank'])
             rho_rl, _ = spearmanr(global_imp['Rulex_Rank'], global_imp['LIME_Rank'])
             rho_sl, _ = spearmanr(global_imp['SHAP_Rank'],  global_imp['LIME_Rank']) 
+            
+            # D. Metrics: Kendall Tau-b (Uses RAW values to utilize native tie-penalties)
+            tau_rs, _ = kendalltau(global_imp['Rulex_Val'], global_imp['SHAP_Val'])
+            tau_rl, _ = kendalltau(global_imp['Rulex_Val'], global_imp['LIME_Val'])
+            tau_sl, _ = kendalltau(global_imp['SHAP_Val'],  global_imp['LIME_Val'])
+            
+            # Safety checks for NaNs (occurs if an algorithm gives 0 to literally every feature)
+            tau_rs = 0 if np.isnan(tau_rs) else tau_rs
+            tau_rl = 0 if np.isnan(tau_rl) else tau_rl
+            tau_sl = 0 if np.isnan(tau_sl) else tau_sl
+            
             #We sort by index (Attribute name) to ensure the 'Top K' is deterministic during ties
             def get_top_k_set(df, rank_col, k): 
                 return set(df.sort_values(by=[rank_col, 'Attribute'], ascending=[True, True]).head(k)['Attribute'])
-            # D. Metrics: Jaccard
+            # E. Metrics: Jaccard
             top_rulex = get_top_k_set(global_imp.reset_index(), 'Rulex_Rank', top_k)
             top_shap  = get_top_k_set(global_imp.reset_index(), 'SHAP_Rank', top_k)
             top_lime  = get_top_k_set(global_imp.reset_index(), 'LIME_Rank', top_k)
@@ -86,6 +97,9 @@ class XAIComparativeAnalysis:
                 'Spearman (Rulex-SHAP)': rho_rs,
                 'Spearman (Rulex-LIME)': rho_rl,
                 'Spearman (SHAP-LIME)': rho_sl,
+                'Kendall (Rulex-SHAP)': tau_rs,     
+                'Kendall (Rulex-LIME)': tau_rl,     
+                'Kendall (SHAP-LIME)': tau_sl, 
                 'Jaccard (Rulex-SHAP)': calc_jaccard(top_rulex, top_shap),
                 'Jaccard (Rulex-LIME)': calc_jaccard(top_rulex, top_lime),
                 'Jaccard (SHAP-LIME)': calc_jaccard(top_shap, top_lime)
@@ -96,7 +110,7 @@ class XAIComparativeAnalysis:
         
         if not results_df.empty:
             # Calculate the mean across all targets for this dataset
-            dataset_avg = results_df.mean().to_frame().T
+            dataset_avg = results_df.mean().to_frame().T.round(2)
             
             # Add the dataset name
             dataset_avg.insert(0, 'Dataset', os.path.basename(file_path))
@@ -122,14 +136,16 @@ class XAIComparativeAnalysis:
         summary_df = pd.concat(self.dataset_summaries, ignore_index=True)
         
         # 2. Calculate the Total Average across all datasets
-        total_avg = summary_df.select_dtypes(include=[np.number]).mean().to_frame().T
+        total_avg = summary_df.select_dtypes(include=[np.number]).mean().to_frame().T.round(2)
         total_avg['Dataset'] = 'TOTAL AVERAGE'
         
         # 3. Combine into one final table
         final_table = pd.concat([summary_df, total_avg], ignore_index=True)
         
         # 4. Organize Columns
-        cols = ['Dataset', 'Spearman (Rulex-SHAP)', 'Spearman (Rulex-LIME)', 'Spearman (SHAP-LIME)', 
+        cols = ['Dataset', 
+                'Spearman (Rulex-SHAP)', 'Spearman (Rulex-LIME)', 'Spearman (SHAP-LIME)', 
+                'Kendall (Rulex-SHAP)', 'Kendall (Rulex-LIME)', 'Kendall (SHAP-LIME)', 
                 'Jaccard (Rulex-SHAP)', 'Jaccard (Rulex-LIME)', 'Jaccard (SHAP-LIME)']
         cols = [c for c in cols if c in final_table.columns]
         

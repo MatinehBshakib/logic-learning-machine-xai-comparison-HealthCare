@@ -4,7 +4,6 @@ import os
 def main():
       analysis = XAIComparativeAnalysis()
       base_folder = 'outputs__'
-      # 1. Update this list with ALL your file names
       files_to_process = [
       'Breast_Cancer.csv', 
       'CDC_Diabetes.csv',
@@ -19,7 +18,7 @@ def main():
       files_to_process = [os.path.join(base_folder, f) for f in files_to_process]
       # 2. Run the Loop
       for f in files_to_process:
-            analysis.execute_analysis(f)
+            analysis.execute_analysis(f) 
 
       # 3. Save the Final Table
       analysis.save_final_table(output_folder=base_folder)
