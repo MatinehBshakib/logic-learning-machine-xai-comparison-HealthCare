@@ -33,6 +33,7 @@ class SingleOutput(BaseStrategy):
             print(f"Model Accuracy: {clf.score(x_test, y_test):.4f}")
             self.run_shap(clf, x_train, x_test)
             self.run_lime(clf, x_train, x_test, class_names)
+            self.run_ablation(clf, x_train, x_test)
             return clf
 class HierarchicalStrategy(BaseStrategy):
       def __init__(self, group_mapping, algo='xgb'):
@@ -109,6 +110,10 @@ class HierarchicalStrategy(BaseStrategy):
                                             x_test_spec, 
                                             class_names= sub_class_names,
                                             output_filename=f"lime_{category}_{sub_col}.csv")
+                              self.run_ablation(estimator,
+                                            x_spec_train,
+                                            x_test_spec,
+                                            output_filename=f"ablation_{category}_{sub_col}.csv")
                   else:
                         print(f"Warning: No positive predictions from Gatekeeper for {category}, skipping Specialist evaluation.")
                   results[category] = (gate_model, spec_model)
@@ -159,6 +164,9 @@ class MultiLabelStrategy(BaseStrategy):
                   class_names = [f"No_{col_name}", str(col_name)]
                   self.run_lime(estimator, x_train, x_test, class_names, 
                                 output_filename=f"lime_flat_{col_name}.csv")
+                  
+                  self.run_ablation(estimator, x_train, x_test,
+                                     output_filename=f"ablation_flat_{col_name}.csv")     
                   
             return clf
                

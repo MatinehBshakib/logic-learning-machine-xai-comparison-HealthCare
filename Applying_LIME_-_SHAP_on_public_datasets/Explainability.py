@@ -113,3 +113,61 @@ class Explainability:
             sort_shap_df.to_csv(output_filename, index=False)
             print(f"SHAP explanations saved to {output_filename}.")
             return sort_shap_df
+      
+      def run_ablation(self, clf, x_train, x_test, output_filename="ablation_explanation_results.csv"):
+            """
+            Perturbation-based explainer similar in concept to RISE. 
+            'Masks' each feature by replacing it with its training mean, 
+            then calculates the drop in prediction probability.
+            """
+            # 1. Calculate the "mask" baseline (mean of training data for each feature)
+            baselines = x_train.mean()
+            
+            # 2. Get original predictions for the positive class (assumes index 1 is positive)
+            try:
+                  original_preds = clf.predict_proba(x_test)[:, 1]
+            except AttributeError:
+                  print("Warning: Model does not support predict_proba. Using predict() instead.")
+                  original_preds = clf.predict(x_test)
+                  
+            ablation_rows = []
+            feature_names = x_train.columns.tolist()
+            
+            # 3. Iterate through each feature to ablate (mask)
+            for feat_idx, feat_name in enumerate(feature_names):
+                  # Create a perturbed copy of the test set
+                  x_test_perturbed = x_test.copy()
+                  
+                  # Mask the feature by replacing it with its baseline mean
+                  x_test_perturbed[feat_name] = baselines[feat_name]
+                  
+                  # Get new predictions after hiding the feature
+                  try:
+                        perturbed_preds = clf.predict_proba(x_test_perturbed)[:, 1]
+                  except AttributeError:
+                        perturbed_preds = clf.predict(x_test_perturbed)
+                        
+                  # Calculate the impact (Original - Perturbed)
+                  # A positive value means hiding the feature caused the prediction to drop
+                  impacts = original_preds - perturbed_preds
+                  
+                  # 4. Store results for each instance
+                  for i in range(len(x_test)):
+                        ablation_rows.append({
+                              "id": x_test.index[i],
+                              "feature": feat_name,
+                              "feature_value": x_test.iloc[i, feat_idx],
+                              "base_value": original_preds[i],
+                              "ablation_value": impacts[i]
+                        })
+                        
+            # 5. Convert to DataFrame, sort, and save
+            ablation_df = pd.DataFrame(ablation_rows)
+            ablation_df["feature_lower"] = ablation_df["feature"].str.lower() 
+            sort_ablation_df = ablation_df.sort_values(by=["id", "feature_lower"], ascending=[True, True])
+            sort_ablation_df = sort_ablation_df.drop(columns=["feature_lower"])
+            
+            sort_ablation_df.to_csv(output_filename, index=False)
+            print(f"Ablation explanations saved to {output_filename}.")
+            
+            return sort_ablation_df

@@ -20,6 +20,7 @@ class PostProcessor:
             # Determine the corresponding LIME filename
             # Example: shap_mech_cols_OTEK_LANC.csv -> lime_mech_cols_OTEK_LANC.csv
             lime_path = shap_path.replace("shap_", "lime_")
+            ablation_path = shap_path.replace("shap_", "ablation_")
             
             try:
                 # 2. Load Data
@@ -44,7 +45,20 @@ class PostProcessor:
                     merged_df = shap_df
                     merged_df['lime_value'] = 0 # Fill missing LIME with 0
                     merged_df.rename(columns={'base_value': 'base_value_shap'}, inplace=True)
-
+                    
+                # Check if corresponding Ablation file exists 
+                if os.path.exists(ablation_path):
+                    ablation_df = pd.read_csv(ablation_path)
+                    merged_df = pd.merge(
+                        merged_df, 
+                        ablation_df[['id', 'feature', 'ablation_value']], 
+                        on=['id', 'feature'], 
+                        how='left'
+                    )
+                else:
+                    print(f"Warning: Ablation file not found for {shap_path}.")
+                    merged_df['ablation_value'] = 0
+                    
                 # 4. Extract Context/Target Name from filename
                 # Remove "shap_" prefix and ".csv" suffix
                 context_name = os.path.basename(shap_path).replace("shap_", "").replace(".csv", "")
@@ -56,8 +70,10 @@ class PostProcessor:
                 files_to_delete.append(shap_path)
                 if os.path.exists(lime_path):
                     files_to_delete.append(lime_path)
+                
+                if os.path.exists(ablation_path): 
+                    files_to_delete.append(ablation_path)
                 print(f"Processed and marked for deletion: {context_name}")
-
             except Exception as e:
                 print(f"Error processing {shap_path}: {e}")
 
@@ -67,7 +83,7 @@ class PostProcessor:
             
             # Reorder columns for readability
             cols = ['id', 'Target_Context', 'feature', 'feature_value', 
-                    'shap_value', 'lime_value', 'base_value_shap', 'base_value_lime']
+                    'shap_value', 'lime_value', 'ablation_value', 'base_value_shap', 'base_value_lime']
             # Only select columns that actually exist in the dataframe
             final_cols = [c for c in cols if c in final_df.columns]
             final_df = final_df[final_cols]
