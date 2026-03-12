@@ -46,16 +46,11 @@ class DiabetesOptimizer: #Diabetes 130-US Hospitals for years 1999-2008 Data Set
         # 4. Target Transformation
         y_final = None
         if y is not None:
-            if target_name in X.columns:# If target is still in X (train), use it; else use y
-                y_series = X[target_name]
-            else:
-            # Logic: <30 days = 1 (Early Readmission), All else = 0
-                 y_series = y[target_name] if isinstance(y, pd.DataFrame) else y
-                 
+            y_series = X[target_name]
             y_new = y_series.apply(lambda x: 1 if str(x) == '<30' else 0)
             y_final = y_new.to_frame(name='Readmitted')
-            # Remove original target from features to prevent leakage
             X = X.drop(columns=[target_name], errors='ignore')
+            
         # A. Map Age
         if 'age' in X.columns:
             age_map = {f'[{i*10}-{i*10+10})': i for i in range(10)}

@@ -120,8 +120,14 @@ class Explainability:
             'Masks' each feature by replacing it with its training mean, 
             then calculates the drop in prediction probability.
             """
-            # 1. Calculate the "mask" baseline (mean of training data for each feature)
-            baselines = x_train.mean()
+            # 1. Calculate the "mask" baseline for each feature (mean for continuous, mode for binary) from the training data
+            baselines = {}
+            for col in x_train.columns:
+                  unique_vals = x_train[col].unique()
+                  if len(unique_vals) <= 2:
+                        baselines[col] = x_train[col].mode()[0]   # binary → mode
+                  else:
+                        baselines[col] = x_train[col].mean()  # continuous → mean
             
             # 2. Get original predictions for the positive class (assumes index 1 is positive)
             try:
@@ -157,8 +163,8 @@ class Explainability:
                               "id": x_test.index[i],
                               "feature": feat_name,
                               "feature_value": x_test.iloc[i, feat_idx],
-                              "base_value": original_preds[i],
-                              "ablation_value": impacts[i]
+                              "base_value": float(clf.predict_proba(x_train)[:, 1].mean()), # Average prediction on training data as a baseline
+                              "ablation_value": abs(impacts[i])
                         })
                         
             # 5. Convert to DataFrame, sort, and save
