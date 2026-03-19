@@ -23,7 +23,7 @@ class SingleOutput(BaseStrategy):
             class_names = ["0", "1"]
             #Train the model 
             if self.algo == 'xgb':
-                  clf = xgb.XGBClassifier(eval_metric='logloss', random_state=42, base_score=0.5, scale_pos_weight=self.scale_pos_weight)
+                  clf = xgb.XGBClassifier(eval_metric='logloss', random_state=42, scale_pos_weight=self.scale_pos_weight)
             else:
                   clf = RandomForestClassifier(class_weight='balanced', random_state=42)
             clf.fit(x_train, y_train)

@@ -114,22 +114,14 @@ class Explainability:
             print(f"SHAP explanations saved to {output_filename}.")
             return sort_shap_df
       
-      def run_ablation(self, clf, x_train, x_test, output_filename="ablation_explanation_results.csv"):
+      def run_ablation(self, clf, x_train, x_test, output_filename="ablation_explanation_results.csv", n_samples=50):
             """
-            Perturbation-based explainer similar in concept to RISE. 
-            'Masks' each feature by replacing it with its training mean, 
-            then calculates the drop in prediction probability.
+            Perturbation-based explainer using Marginal Background Sampling. 
+            Measures the net expected impact by averaging signed differences 
+            against random background samples, then taking the absolute magnitude.
             """
-            # 1. Calculate the "mask" baseline for each feature (mean for continuous, mode for binary) from the training data
-            baselines = {}
-            for col in x_train.columns:
-                  unique_vals = x_train[col].unique()
-                  if len(unique_vals) <= 2:
-                        baselines[col] = x_train[col].mode()[0]   # binary → mode
-                  else:
-                        baselines[col] = x_train[col].mean()  # continuous → mean
+            print(f"Running Ablation with {n_samples} background samples per feature...")
             
-            # 2. Get original predictions for the positive class (assumes index 1 is positive)
             try:
                   original_preds = clf.predict_proba(x_test)[:, 1]
             except AttributeError:
@@ -139,35 +131,43 @@ class Explainability:
             ablation_rows = []
             feature_names = x_train.columns.tolist()
             
-            # 3. Iterate through each feature to ablate (mask)
+            try:
+                  train_base_value = float(clf.predict_proba(x_train)[:, 1].mean())
+            except AttributeError:
+                  train_base_value = float(clf.predict(x_train).mean())
+            
             for feat_idx, feat_name in enumerate(feature_names):
-                  # Create a perturbed copy of the test set
-                  x_test_perturbed = x_test.copy()
                   
-                  # Mask the feature by replacing it with its baseline mean
-                  x_test_perturbed[feat_name] = baselines[feat_name]
+                  # Array to accumulate SIGNED impacts
+                  accumulated_impacts = np.zeros(len(x_test))
                   
-                  # Get new predictions after hiding the feature
-                  try:
-                        perturbed_preds = clf.predict_proba(x_test_perturbed)[:, 1]
-                  except AttributeError:
-                        perturbed_preds = clf.predict(x_test_perturbed)
+                  for _ in range(n_samples):
+                        x_test_perturbed = x_test.copy()
                         
-                  # Calculate the impact (Original - Perturbed)
-                  # A positive value means hiding the feature caused the prediction to drop
-                  impacts = original_preds - perturbed_preds
+                        # Sample random values from the training distribution
+                        random_background = x_train[feat_name].sample(n=len(x_test), replace=True).values
+                        x_test_perturbed[feat_name] = random_background
+                        
+                        try:
+                              perturbed_preds = clf.predict_proba(x_test_perturbed)[:, 1]
+                        except AttributeError:
+                              perturbed_preds = clf.predict(x_test_perturbed)
+                              
+                        # Accumulate signed differences (original - perturbed)
+                        accumulated_impacts += (original_preds - perturbed_preds)
                   
-                  # 4. Store results for each instance
+                  # Take the absolute value of the AVERAGE impact
+                  avg_impacts = np.abs(accumulated_impacts / n_samples)
+                  
                   for i in range(len(x_test)):
                         ablation_rows.append({
                               "id": x_test.index[i],
                               "feature": feat_name,
                               "feature_value": x_test.iloc[i, feat_idx],
-                              "base_value": float(clf.predict_proba(x_train)[:, 1].mean()), # Average prediction on training data as a baseline
-                              "ablation_value": abs(impacts[i])
+                              "base_value": train_base_value, 
+                              "ablation_value": avg_impacts[i]
                         })
                         
-            # 5. Convert to DataFrame, sort, and save
             ablation_df = pd.DataFrame(ablation_rows)
             ablation_df["feature_lower"] = ablation_df["feature"].str.lower() 
             sort_ablation_df = ablation_df.sort_values(by=["id", "feature_lower"], ascending=[True, True])
