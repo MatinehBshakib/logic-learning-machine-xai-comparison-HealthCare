@@ -21,6 +21,7 @@ class PostProcessor:
             # Example: shap_mech_cols_OTEK_LANC.csv -> lime_mech_cols_OTEK_LANC.csv
             lime_path = shap_path.replace("shap_", "lime_")
             ablation_path = shap_path.replace("shap_", "ablation_")
+            cum_ablation_path = shap_path.replace("shap_", "cum_ablation_")
             
             try:
                 # 2. Load Data
@@ -58,6 +59,20 @@ class PostProcessor:
                 else:
                     print(f"Warning: Ablation file not found for {shap_path}.")
                     merged_df['ablation_value'] = 0
+                
+                # Check if corresponding Cumulative Ablation file exists 
+                if os.path.exists(cum_ablation_path):
+                    cum_ablation_df = pd.read_csv(cum_ablation_path)
+                    merged_df = pd.merge(
+                        merged_df, 
+                        cum_ablation_df[['id', 'feature', 'cum_ablation_value']], 
+                        on=['id', 'feature'], 
+                        how='left'
+                    )
+                    files_to_delete.append(cum_ablation_path) # Mark for deletion
+                else:
+                    print(f"Warning: Cum Ablation file not found for {shap_path}.")
+                    merged_df['cum_ablation_value'] = 0
                     
                 # 4. Extract Context/Target Name from filename
                 # Remove "shap_" prefix and ".csv" suffix
@@ -83,7 +98,8 @@ class PostProcessor:
             
             # Reorder columns for readability
             cols = ['id', 'Target_Context', 'feature', 'feature_value', 
-                    'shap_value', 'lime_value', 'ablation_value', 'base_value_shap', 'base_value_lime']
+                    'shap_value', 'lime_value', 'ablation_value', 'cum_ablation_value', 
+                    'base_value_shap', 'base_value_lime']
             # Only select columns that actually exist in the dataframe
             final_cols = [c for c in cols if c in final_df.columns]
             final_df = final_df[final_cols]

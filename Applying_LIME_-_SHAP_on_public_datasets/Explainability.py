@@ -177,3 +177,85 @@ class Explainability:
             print(f"Ablation explanations saved to {output_filename}.")
             
             return sort_ablation_df
+      
+      def run_cumulative_ablation(self, clf, x_train, x_test, ablation_df, output_filename="cum_ablation_results.csv", n_samples=50):
+            """
+            Cumulative Ablation: Takes the results from standard ablation, 
+            calculates the global average importance to sort features from least to most,
+            and cumulatively masks them to measure the drop jumps.
+            """
+            print(f"Running Cumulative Ablation with {n_samples} background samples...")
+            
+            # 1. Determine "Least to Most" Order using STANDARD ABLATION results
+            # Group by feature and get the average importance across all rows
+            global_ablation = ablation_df.groupby('feature')['ablation_value'].mean()
+            
+            # Sort ascending (least important first) and extract the feature names as a list
+            least_to_most_features = global_ablation.sort_values(ascending=True).index.tolist()
+            
+            # 2. Get original predictions and base value
+            try:
+                  original_preds = clf.predict_proba(x_test)[:, 1]
+                  train_base_value = float(clf.predict_proba(x_train)[:, 1].mean())
+            except AttributeError:
+                  print("Warning: Model does not support predict_proba. Using predict() instead.")
+                  original_preds = clf.predict(x_test)
+                  train_base_value = float(clf.predict(x_train).mean())
+                  
+            cumulative_rows = []
+            features_to_mask = []
+            
+            # Track the 'previous' prediction to measure the jump caused by the NEW feature
+            prev_preds = original_preds.copy()
+            
+            # 3. The Cumulative Loop
+            for feat_name in least_to_most_features:
+                  features_to_mask.append(feat_name) # Add feature to the cumulative mask list
+                  
+                  accumulated_preds = np.zeros(len(x_test))
+                  
+                  # Background sampling for the masked subset
+                  for _ in range(n_samples):
+                        x_test_perturbed = x_test.copy()
+                        
+                        # Mask ALL features currently in the list
+                        for f in features_to_mask:
+                              x_test_perturbed[f] = x_train[f].sample(n=len(x_test), replace=True).values
+                              
+                        try:
+                              perturbed_preds = clf.predict_proba(x_test_perturbed)[:, 1]
+                        except AttributeError:
+                              perturbed_preds = clf.predict(x_test_perturbed)
+                              
+                        accumulated_preds += perturbed_preds
+                        
+                  # Average the predictions across the samples
+                  avg_perturbed_preds = accumulated_preds / n_samples
+                  
+                  # The "Importance" is how much the prediction dropped specifically 
+                  # at the moment THIS feature was added to the masking list.
+                  jump_in_prediction = np.abs(prev_preds - avg_perturbed_preds)
+                  
+                  # Update the previous predictions for the next loop
+                  prev_preds = avg_perturbed_preds
+                  
+                  # 4. Store results
+                  for i in range(len(x_test)):
+                        cumulative_rows.append({
+                              "id": x_test.index[i],
+                              "feature": feat_name,
+                              "feature_value": x_test.iloc[i, x_train.columns.get_loc(feat_name)],
+                              "base_value": train_base_value, 
+                              "cum_ablation_value": jump_in_prediction[i] # Saved as cum_ablation_value
+                        })
+                        
+            # 5. Format and Save
+            cumulative_df = pd.DataFrame(cumulative_rows)
+            cumulative_df["feature_lower"] = cumulative_df["feature"].str.lower() 
+            sort_cumulative_df = cumulative_df.sort_values(by=["id", "feature_lower"], ascending=[True, True])
+            sort_cumulative_df = sort_cumulative_df.drop(columns=["feature_lower"])
+            
+            sort_cumulative_df.to_csv(output_filename, index=False)
+            print(f"Cumulative Ablation explanations saved to {output_filename}.")
+            
+            return sort_cumulative_df

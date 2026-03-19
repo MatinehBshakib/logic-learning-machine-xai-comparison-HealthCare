@@ -32,7 +32,8 @@ class SingleOutput(BaseStrategy):
             target_col = y_train.name if hasattr(y_train, 'name') and y_train.name else "target"
             self.run_shap(clf, x_train, x_test, output_filename=f"shap_{target_col}.csv")
             self.run_lime(clf, x_train, x_test, class_names, output_filename=f"lime_{target_col}.csv")
-            self.run_ablation(clf, x_train, x_test, output_filename=f"ablation_{target_col}.csv")
+            ablation_df = self.run_ablation(clf, x_train, x_test, output_filename=f"ablation_{target_col}.csv")
+            self.run_cumulative_ablation(clf, x_train, x_test, ablation_df, output_filename=f"cum_ablation_{target_col}.csv")
             return clf
 class HierarchicalStrategy(BaseStrategy):
       def __init__(self, group_mapping, algo='xgb'):
@@ -109,10 +110,15 @@ class HierarchicalStrategy(BaseStrategy):
                                             x_test_spec, 
                                             class_names= sub_class_names,
                                             output_filename=f"lime_{category}_{sub_col}.csv")
-                              self.run_ablation(estimator,
-                                            x_spec_train,
-                                            x_test_spec,
-                                            output_filename=f"ablation_{category}_{sub_col}.csv")
+                              ablation_df = self.run_ablation(estimator, 
+                                                              x_spec_train, 
+                                                              x_test_spec, 
+                                                              output_filename=f"ablation_{category}_{sub_col}.csv")
+                              self.run_cumulative_ablation(estimator, 
+                                                           x_spec_train,
+                                                           x_test_spec,
+                                                           ablation_df, 
+                                                           output_filename=f"cum_ablation_{category}_{sub_col}.csv")
                   else:
                         print(f"Warning: No positive predictions from Gatekeeper for {category}, skipping Specialist evaluation.")
                   results[category] = (gate_model, spec_model)
@@ -154,18 +160,16 @@ class MultiLabelStrategy(BaseStrategy):
                   acc = accuracy_score(y_test_col, y_pred_col)
                   print(f"Accuracy for {col_name}: {acc:.4f}")
                   
-                  # Generate SHAP
                   # We pass the specific estimator for this column, not the whole wrapper
                   self.run_shap(estimator, x_train, x_test, 
                                 output_filename=f"shap_flat_{col_name}.csv")
-                  
-                  # Generate LIME
                   class_names = [f"No_{col_name}", str(col_name)]
                   self.run_lime(estimator, x_train, x_test, class_names, 
                                 output_filename=f"lime_flat_{col_name}.csv")
-                  
-                  self.run_ablation(estimator, x_train, x_test,
-                                     output_filename=f"ablation_flat_{col_name}.csv")     
+                  ablation_df = self.run_ablation(estimator, x_train, x_test,
+                                                  output_filename=f"ablation_flat_{col_name}.csv")
+                  self.run_cumulative_ablation(estimator, x_train, x_test,
+                                               ablation_df, output_filename=f"cum_ablation_flat_{col_name}.csv")   
                   
             return clf
                
