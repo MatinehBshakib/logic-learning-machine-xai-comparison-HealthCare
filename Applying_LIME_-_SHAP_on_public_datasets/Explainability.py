@@ -6,13 +6,11 @@ import numpy as np
 class Explainability:
       
       def run_lime(self,clf, x_train, x_test, class_names, output_filename="lime_explanation_results.csv"):
+            # This wrapper is needed because LIME expects a function that takes a 2D numpy array and returns a 2D array of probabilities.
             def predict_fn_wrapper(data_numpy):
-                  if len(data_numpy.shape) == 1:
-                        data_numpy = data_numpy.reshape(1, -1)
-                  data_df = pd.DataFrame(data_numpy, columns=x_train.columns)
-                  # Ensure the input data is in the same format as the training data
-                  data_df = data_df.astype(x_train.dtypes.to_dict()) 
-                  return clf.predict_proba(data_df)
+                              data_df = pd.DataFrame(data_numpy, columns=x_train.columns)
+                              data_df = data_df.astype(np.float32) 
+                              return clf.predict_proba(data_df)
             
             #initialize LIME explainer
             explainer = lime_tabular.LimeTabularExplainer(
@@ -93,15 +91,18 @@ class Explainability:
             shap_rows = []
             feature_names = x_train.columns.tolist()
             
+            x_test_values = x_test.values 
+            x_test_indices = x_test.index.tolist()
+            
             for i in range(len(x_test)):
-                  current_id = x_test.index[i]  # Get the original index of the instance
+                  current_id = x_test_indices[i]
                   current_base_value = base_values[i]
                   # Iterate through each feature
                   for feat_idx, feat_name in enumerate(feature_names):
                         shap_rows.append({
                               "id": current_id,
                               "feature": feat_name,
-                              "feature_value": x_test.iloc[i, feat_idx],
+                              "feature_value": x_test_values[i, feat_idx],
                               "base_value": current_base_value,
                               "shap_value": shap_values[i,feat_idx]
                         })
@@ -120,46 +121,47 @@ class Explainability:
             Measures the net expected impact by averaging signed differences 
             against random background samples, then taking the absolute magnitude.
             """
-            print(f"Running Ablation with {n_samples} background samples per feature...")
+            print(f"Running Optimized Ablation with {n_samples} background samples per feature...")
             
             try:
                   original_preds = clf.predict_proba(x_test)[:, 1]
+                  train_base_value = float(clf.predict_proba(x_train)[:, 1].mean())
             except AttributeError:
                   print("Warning: Model does not support predict_proba. Using predict() instead.")
                   original_preds = clf.predict(x_test)
+                  train_base_value = float(clf.predict(x_train).mean())
                   
             ablation_rows = []
             feature_names = x_train.columns.tolist()
+            num_test_instances = len(x_test)
             
-            try:
-                  train_base_value = float(clf.predict_proba(x_train)[:, 1].mean())
-            except AttributeError:
-                  train_base_value = float(clf.predict(x_train).mean())
+            # --- THE SPEED OPTIMIZATION: Pre-allocate the batch dataset ---
+            # We copy the patients n_samples times into one giant dataframe
+            x_test_repeated = pd.DataFrame(
+                  np.tile(x_test.values, (n_samples, 1)), 
+                  columns=x_test.columns
+            )
             
             for feat_idx, feat_name in enumerate(feature_names):
+                  x_test_batch = x_test_repeated.copy()
                   
-                  # Array to accumulate SIGNED impacts
-                  accumulated_impacts = np.zeros(len(x_test))
+                  # Sample random values for the entire batch at once
+                  bg_samples = x_train[feat_name].sample(n=len(x_test_batch), replace=True, random_state=42).values
+                  x_test_batch[feat_name] = bg_samples
                   
-                  for _ in range(n_samples):
-                        x_test_perturbed = x_test.copy()
+                  # Predict the entire batch in ONE model call
+                  try:
+                        batch_preds = clf.predict_proba(x_test_batch)[:, 1]
+                  except AttributeError:
+                        batch_preds = clf.predict(x_test_batch)
                         
-                        # Sample random values from the training distribution
-                        random_background = x_train[feat_name].sample(n=len(x_test), replace=True).values
-                        x_test_perturbed[feat_name] = random_background
-                        
-                        try:
-                              perturbed_preds = clf.predict_proba(x_test_perturbed)[:, 1]
-                        except AttributeError:
-                              perturbed_preds = clf.predict(x_test_perturbed)
-                              
-                        # Accumulate signed differences (original - perturbed)
-                        accumulated_impacts += (original_preds - perturbed_preds)
+                  # Reshape and get the average perturbed prediction for each patient
+                  avg_perturbed_preds = batch_preds.reshape(n_samples, num_test_instances).mean(axis=0)
                   
-                  # Take the absolute value of the AVERAGE impact
-                  avg_impacts = np.abs(accumulated_impacts / n_samples)
+                  # The impact is the absolute difference between original and the new average
+                  avg_impacts = np.abs(original_preds - avg_perturbed_preds)
                   
-                  for i in range(len(x_test)):
+                  for i in range(num_test_instances):
                         ablation_rows.append({
                               "id": x_test.index[i],
                               "feature": feat_name,
@@ -177,20 +179,17 @@ class Explainability:
             print(f"Ablation explanations saved to {output_filename}.")
             
             return sort_ablation_df
-      
+            
       def run_cumulative_ablation(self, clf, x_train, x_test, ablation_df, output_filename="cum_ablation_results.csv", n_samples=50):
             """
             Cumulative Ablation: Takes the results from standard ablation, 
             calculates the global average importance to sort features from least to most,
             and cumulatively masks them to measure the drop jumps.
             """
-            print(f"Running Cumulative Ablation with {n_samples} background samples...")
+            print(f"Running Optimized Cumulative Ablation with {n_samples} background samples...")
             
-            # 1. Determine "Least to Most" Order using STANDARD ABLATION results
-            # Group by feature and get the average importance across all rows
+            # 1. Determine "Least to Most" Order
             global_ablation = ablation_df.groupby('feature')['ablation_value'].mean()
-            
-            # Sort ascending (least important first) and extract the feature names as a list
             least_to_most_features = global_ablation.sort_values(ascending=True).index.tolist()
             
             # 2. Get original predictions and base value
@@ -202,53 +201,53 @@ class Explainability:
                   original_preds = clf.predict(x_test)
                   train_base_value = float(clf.predict(x_train).mean())
                   
+            # Instead of a loop, we tile x_test to create a single batch matrix of size (N * n_samples)
+            num_test_instances = len(x_test)
+            x_test_repeated = pd.DataFrame(
+                  np.tile(x_test.values, (n_samples, 1)), 
+                  columns=x_test.columns
+            )
+
             cumulative_rows = []
             features_to_mask = []
-            
-            # Track the 'previous' prediction to measure the jump caused by the NEW feature
             prev_preds = original_preds.copy()
             
             # 3. The Cumulative Loop
             for feat_name in least_to_most_features:
-                  features_to_mask.append(feat_name) # Add feature to the cumulative mask list
+                  features_to_mask.append(feat_name) 
                   
-                  accumulated_preds = np.zeros(len(x_test))
+                  # --- NEW SPEED OPTIMIZATION: Vectorized Masking & Batch Prediction ---
+                  x_test_batch = x_test_repeated.copy()
                   
-                  # Background sampling for the masked subset
-                  for _ in range(n_samples):
-                        x_test_perturbed = x_test.copy()
+                  # Sample enough random background rows for the entire batch in one go
+                  bg_samples = x_train[features_to_mask].sample(n=len(x_test_batch), replace=True, random_state=42).values
+                  
+                  # Overwrite all masked features simultaneously 
+                  x_test_batch[features_to_mask] = bg_samples
+                  
+                  # Predict the entire batch of (N * n_samples) in a single model call!
+                  try:
+                        batch_preds = clf.predict_proba(x_test_batch)[:, 1]
+                  except AttributeError:
+                        batch_preds = clf.predict(x_test_batch)
                         
-                        # Mask ALL features currently in the list
-                        for f in features_to_mask:
-                              x_test_perturbed[f] = x_train[f].sample(n=len(x_test), replace=True).values
-                              
-                        try:
-                              perturbed_preds = clf.predict_proba(x_test_perturbed)[:, 1]
-                        except AttributeError:
-                              perturbed_preds = clf.predict(x_test_perturbed)
-                              
-                        accumulated_preds += perturbed_preds
-                        
-                  # Average the predictions across the samples
-                  avg_perturbed_preds = accumulated_preds / n_samples
+                  # Reshape the flat predictions array into a grid of (n_samples, N) and calculate the mean column-wise
+                  avg_perturbed_preds = batch_preds.reshape(n_samples, num_test_instances).mean(axis=0)
                   
-                  # The "Importance" is how much the prediction dropped specifically 
-                  # at the moment THIS feature was added to the masking list.
+                  # The jump caused by this specific feature
                   jump_in_prediction = np.abs(prev_preds - avg_perturbed_preds)
-                  
-                  # Update the previous predictions for the next loop
                   prev_preds = avg_perturbed_preds
                   
                   # 4. Store results
-                  for i in range(len(x_test)):
+                  for i in range(num_test_instances):
                         cumulative_rows.append({
                               "id": x_test.index[i],
                               "feature": feat_name,
                               "feature_value": x_test.iloc[i, x_train.columns.get_loc(feat_name)],
                               "base_value": train_base_value, 
-                              "cum_ablation_value": jump_in_prediction[i],
                               "original_prediction": original_preds[i],
-                              "current_prediction": avg_perturbed_preds[i]
+                              "current_prediction": avg_perturbed_preds[i],
+                              "cum_ablation_value": jump_in_prediction[i]
                         })
                         
             # 5. Format and Save

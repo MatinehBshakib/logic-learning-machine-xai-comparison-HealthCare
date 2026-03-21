@@ -59,9 +59,9 @@ class HierarchicalStrategy(BaseStrategy):
                   print(f"Training Gatekeeper for {category}...")
                   
                   if self.algo == 'xgb':
-                        gate_model = xgb.XGBClassifier(eval_metric='logloss', random_state=42)
+                        gate_model = xgb.XGBClassifier(eval_metric='logloss', random_state=42, n_jobs=-1)
                   else:
-                        gate_model = RandomForestClassifier(class_weight='balanced', random_state=42)
+                        gate_model = RandomForestClassifier(class_weight='balanced', random_state=42, n_jobs=-1)
                   
                   #Evaluate 
                   gate_model.fit(x_train, y_train_gate)
@@ -77,9 +77,9 @@ class HierarchicalStrategy(BaseStrategy):
                   if len(x_spec_train) > 5:
                         
                         if self.algo == 'xgb':
-                              base = xgb.XGBClassifier(eval_metric='logloss', random_state=42)
+                              base = xgb.XGBClassifier(eval_metric='logloss', random_state=42, n_jobs=-1)
                         else:
-                              base = RandomForestClassifier(class_weight='balanced', random_state=42)
+                              base = RandomForestClassifier(class_weight='balanced', random_state=42, n_jobs=-1)
                         spec_model = MultiOutputClassifier(base)
                         spec_model.fit(x_spec_train, y_spec_train)
                   else:
