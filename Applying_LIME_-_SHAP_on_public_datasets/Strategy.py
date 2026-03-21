@@ -113,12 +113,14 @@ class HierarchicalStrategy(BaseStrategy):
                               ablation_df = self.run_ablation(estimator, 
                                                               x_spec_train, 
                                                               x_test_spec, 
-                                                              output_filename=f"ablation_{category}_{sub_col}.csv")
+                                                              output_filename=f"ablation_{category}_{sub_col}.csv",
+                                                              n_samples=15)
                               self.run_cumulative_ablation(estimator, 
                                                            x_spec_train,
                                                            x_test_spec,
                                                            ablation_df, 
-                                                           output_filename=f"cum_ablation_{category}_{sub_col}.csv")
+                                                           output_filename=f"cum_ablation_{category}_{sub_col}.csv",
+                                                           n_samples=15)
                   else:
                         print(f"Warning: No positive predictions from Gatekeeper for {category}, skipping Specialist evaluation.")
                   results[category] = (gate_model, spec_model)
