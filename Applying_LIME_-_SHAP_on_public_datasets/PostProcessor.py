@@ -65,7 +65,7 @@ class PostProcessor:
                     cum_ablation_df = pd.read_csv(cum_ablation_path)
                     merged_df = pd.merge(
                         merged_df, 
-                        cum_ablation_df[['id', 'feature', 'cum_ablation_value']], 
+                        cum_ablation_df[['id', 'feature', 'cum_ablation_value', "original_prediction", "current_prediction"]], 
                         on=['id', 'feature'], 
                         how='left'
                     )
@@ -99,7 +99,7 @@ class PostProcessor:
             # Reorder columns for readability
             cols = ['id', 'Target_Context', 'feature', 'feature_value', 
                     'shap_value', 'lime_value', 'ablation_value', 'cum_ablation_value', 
-                    'base_value_shap', 'base_value_lime']
+                    'original_prediction', 'current_prediction', 'base_value_shap', 'base_value_lime']
             # Only select columns that actually exist in the dataframe
             final_cols = [c for c in cols if c in final_df.columns]
             final_df = final_df[final_cols]

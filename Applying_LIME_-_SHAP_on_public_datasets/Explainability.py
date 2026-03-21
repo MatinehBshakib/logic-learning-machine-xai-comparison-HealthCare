@@ -246,7 +246,9 @@ class Explainability:
                               "feature": feat_name,
                               "feature_value": x_test.iloc[i, x_train.columns.get_loc(feat_name)],
                               "base_value": train_base_value, 
-                              "cum_ablation_value": jump_in_prediction[i] # Saved as cum_ablation_value
+                              "cum_ablation_value": jump_in_prediction[i],
+                              "original_prediction": original_preds[i],
+                              "current_prediction": avg_perturbed_preds[i]
                         })
                         
             # 5. Format and Save
