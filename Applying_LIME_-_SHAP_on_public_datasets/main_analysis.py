@@ -12,7 +12,7 @@ def main():
       'Diabetic_Retinopathy_Debrecen.csv',
       'Glioma_Grading_Clinical.csv',
       'Hepatit_C_Virus.csv',
-      'Myocardial_Infraction.csv',
+      'Myocardial_Infarction.csv',
       'Obesity_level.csv',
       ]
       files_to_process = [os.path.join(base_folder, f) for f in files_to_process]

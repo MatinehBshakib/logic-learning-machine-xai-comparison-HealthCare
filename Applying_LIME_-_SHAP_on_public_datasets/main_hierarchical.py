@@ -1,9 +1,14 @@
+import random
+import numpy as np
 from Load import LoadData
 from sklearn.model_selection import train_test_split 
 import pandas as pd
 from Strategy import HierarchicalStrategy
 from Config import MycordinalConfig as config
 from PostProcessor import PostProcessor
+
+np.random.seed(42)
+random.seed(42)
 
 def main():
     loader = LoadData()

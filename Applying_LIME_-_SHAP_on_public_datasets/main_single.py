@@ -1,3 +1,5 @@
+import random
+import numpy as np
 from sklearn.model_selection import train_test_split
 from Load import LoadData
 from sklearn.preprocessing import LabelEncoder
@@ -8,6 +10,9 @@ from DiabetesOptimizer import DiabetesOptimizer as DiabetesOpt
 from Diabetic_Retinopathy_Optimizer import DiabeticRetinopathyOptimizer as DROpt
 from PostProcessor import PostProcessor
 import pandas as pd
+
+np.random.seed(42)
+random.seed(42)
 
 def main():
     loader = LoadData()

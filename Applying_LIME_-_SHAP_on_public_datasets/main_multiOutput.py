@@ -1,9 +1,13 @@
+import random
+import numpy as np
 from Load import LoadData
 from sklearn.model_selection import train_test_split 
 from Strategy import MultiLabelStrategy
-from sklearn.utils import shuffle
 import pandas as pd
 from PostProcessor import PostProcessor
+
+np.random.seed(42)
+random.seed(42)
 
 def main():
     loader = LoadData()

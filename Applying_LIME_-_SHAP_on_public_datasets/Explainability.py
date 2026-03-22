@@ -8,9 +8,11 @@ class Explainability:
       def run_lime(self,clf, x_train, x_test, class_names, output_filename="lime_explanation_results.csv"):
             # This wrapper is needed because LIME expects a function that takes a 2D numpy array and returns a 2D array of probabilities.
             def predict_fn_wrapper(data_numpy):
-                              data_df = pd.DataFrame(data_numpy, columns=x_train.columns)
-                              data_df = data_df.astype(np.float32) 
-                              return clf.predict_proba(data_df)
+                  if len(data_numpy.shape) == 1:             
+                        data_numpy = data_numpy.reshape(1, -1)
+                  data_df = pd.DataFrame(data_numpy, columns=x_train.columns)
+                  data_df = data_df.astype(x_train.dtypes.to_dict())  
+                  return clf.predict_proba(data_df)
             
             #initialize LIME explainer
             explainer = lime_tabular.LimeTabularExplainer(
@@ -146,7 +148,7 @@ class Explainability:
                   x_test_batch = x_test_repeated.copy()
                   
                   # Sample random values for the entire batch at once
-                  bg_samples = x_train[feat_name].sample(n=len(x_test_batch), replace=True, random_state=42).values
+                  bg_samples = x_train[feat_name].sample(n=len(x_test_batch), replace=True).values
                   x_test_batch[feat_name] = bg_samples
                   
                   # Predict the entire batch in ONE model call
@@ -220,7 +222,7 @@ class Explainability:
                   x_test_batch = x_test_repeated.copy()
                   
                   # Sample enough random background rows for the entire batch in one go
-                  bg_samples = x_train[features_to_mask].sample(n=len(x_test_batch), replace=True, random_state=42).values
+                  bg_samples = x_train[features_to_mask].sample(n=len(x_test_batch), replace=True).values
                   
                   # Overwrite all masked features simultaneously 
                   x_test_batch[features_to_mask] = bg_samples

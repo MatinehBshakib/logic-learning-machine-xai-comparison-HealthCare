@@ -23,7 +23,7 @@ class XAIComparativeAnalysis:
             return None
 
         # 2. Strict Column Verification
-        required_cols = ['Attribute', 'Rulex', 'SHAP', 'LIME', 'Ablation', 'Cum_Ablation']
+        required_cols = ['Attribute', 'Rulex', 'SHAP', 'LIME', 'Ablation']
         missing = [col for col in required_cols if col not in df.columns]
         
         if missing:
@@ -36,7 +36,7 @@ class XAIComparativeAnalysis:
             df['SHAP_Val']  = df['SHAP']
             df['LIME_Val']  = df['LIME']
             df['Ablation_Val'] = df['Ablation']
-            df['Cum_Ablation_Val'] = df['Cum_Ablation']
+
         except Exception as e:
             print(f"Error during column mapping: {e}")
             return None
@@ -53,7 +53,7 @@ class XAIComparativeAnalysis:
             subset = df[df['Target_Group'] == target].copy()
             
             # A. Prepare Data 
-            global_imp = subset[['Attribute', 'Rulex_Val', 'SHAP_Val', 'LIME_Val', 'Ablation_Val', 'Cum_Ablation_Val']].set_index('Attribute')
+            global_imp = subset[['Attribute', 'Rulex_Val', 'SHAP_Val', 'LIME_Val', 'Ablation_Val']].set_index('Attribute')
         
             # B. Ranking (Add Epsilon to break ties deterministically)
             np.random.seed(42) # Ensure reproducible tie-breaking
@@ -64,15 +64,12 @@ class XAIComparativeAnalysis:
             shap_noisy  = global_imp['SHAP_Val']  + np.random.rand(len(global_imp)) * epsilon
             lime_noisy  = global_imp['LIME_Val']  + np.random.rand(len(global_imp)) * epsilon
             ablation_noisy = global_imp['Ablation_Val'] + np.random.rand(len(global_imp)) * epsilon
-            cum_ablation_noisy = global_imp['Cum_Ablation_Val'] + np.random.rand(len(global_imp)) * epsilon
-      
+                  
             # Rank with method='first' to guarantee entirely unique integer ranks
             global_imp['Rulex_Rank'] = rulex_noisy.rank(method='first', ascending=False)
             global_imp['SHAP_Rank']  = shap_noisy.rank(method='first', ascending=False)
             global_imp['LIME_Rank']  = lime_noisy.rank(method='first', ascending=False)
             global_imp['Ablation_Rank'] = ablation_noisy.rank(method='first', ascending=False)
-            global_imp['Cum_Ablation_Rank'] = cum_ablation_noisy.rank(method='first', ascending=False)
-
             
             # C. Metrics: Spearman
             rho_rs, _ = spearmanr(global_imp['Rulex_Rank'], global_imp['SHAP_Rank'])
@@ -82,12 +79,7 @@ class XAIComparativeAnalysis:
             rho_ra, _ = spearmanr(global_imp['Rulex_Rank'], global_imp['Ablation_Rank'])
             rho_sa, _ = spearmanr(global_imp['SHAP_Rank'],  global_imp['Ablation_Rank']) 
             rho_la, _ = spearmanr(global_imp['LIME_Rank'],  global_imp['Ablation_Rank'])
-            
-            rho_rcum, _ = spearmanr(global_imp['Rulex_Rank'], global_imp['Cum_Ablation_Rank'])
-            rho_scum, _ = spearmanr(global_imp['SHAP_Rank'], global_imp['Cum_Ablation_Rank'])
-            rho_lcum, _ = spearmanr(global_imp['LIME_Rank'], global_imp['Cum_Ablation_Rank'])
-
-            
+ 
             # D. Metrics: Kendall Tau-b (Uses RAW values to utilize native tie-penalties)
             tau_rs, _ = kendalltau(global_imp['Rulex_Val'], global_imp['SHAP_Val'])
             tau_rl, _ = kendalltau(global_imp['Rulex_Val'], global_imp['LIME_Val'])
@@ -97,18 +89,11 @@ class XAIComparativeAnalysis:
             tau_sa, _ = kendalltau(global_imp['SHAP_Val'],  global_imp['Ablation_Val'])
             tau_la, _ = kendalltau(global_imp['LIME_Val'],  global_imp['Ablation_Val'])
             
-            tau_rcum, _ = kendalltau(global_imp['Rulex_Val'], global_imp['Cum_Ablation_Val'])
-            tau_scum, _ = kendalltau(global_imp['SHAP_Val'], global_imp['Cum_Ablation_Val'])
-            tau_lcum, _ = kendalltau(global_imp['LIME_Val'], global_imp['Cum_Ablation_Val'])
 
             tau_ra = 0 if np.isnan(tau_ra) else tau_ra
             tau_sa = 0 if np.isnan(tau_sa) else tau_sa
             tau_la = 0 if np.isnan(tau_la) else tau_la
             
-            tau_rcum = 0 if np.isnan(tau_rcum) else tau_rcum
-            tau_scum = 0 if np.isnan(tau_scum) else tau_scum
-            tau_lcum = 0 if np.isnan(tau_lcum) else tau_lcum
-
             # Safety checks for NaNs (occurs if an algorithm gives 0 to literally every feature)
             tau_rs = 0 if np.isnan(tau_rs) else tau_rs
             tau_rl = 0 if np.isnan(tau_rl) else tau_rl
@@ -123,7 +108,6 @@ class XAIComparativeAnalysis:
             top_shap  = get_top_k_set(global_imp.reset_index(), 'SHAP_Rank', top_k)
             top_lime  = get_top_k_set(global_imp.reset_index(), 'LIME_Rank', top_k)
             top_ablation = get_top_k_set(global_imp.reset_index(), 'Ablation_Rank', top_k)
-            top_cum_ablation = get_top_k_set(global_imp.reset_index(), 'Cum_Ablation_Rank', top_k)
             
             def calc_jaccard(s1, s2):
                 return len(s1.intersection(s2)) / len(s1.union(s2)) if len(s1.union(s2)) > 0 else 0
@@ -132,27 +116,21 @@ class XAIComparativeAnalysis:
                 'Spearman (Rulex-SHAP)': rho_rs,
                 'Spearman (Rulex-LIME)': rho_rl,
                 'Spearman (SHAP-LIME)': rho_sl,
-                'Kendall (Rulex-SHAP)': tau_rs,     
-                'Kendall (Rulex-LIME)': tau_rl,     
-                'Kendall (SHAP-LIME)': tau_sl, 
-                'Jaccard (Rulex-SHAP)': calc_jaccard(top_rulex, top_shap),
-                'Jaccard (Rulex-LIME)': calc_jaccard(top_rulex, top_lime),
-                'Jaccard (SHAP-LIME)': calc_jaccard(top_shap, top_lime),
                 'Spearman (Rulex-Ablat)': rho_ra,
                 'Spearman (SHAP-Ablat)': rho_sa,
                 'Spearman (LIME-Ablat)': rho_la,
+                'Kendall (Rulex-SHAP)': tau_rs,     
+                'Kendall (Rulex-LIME)': tau_rl,     
+                'Kendall (SHAP-LIME)': tau_sl, 
                 'Kendall (Rulex-Ablat)': tau_ra,     
                 'Kendall (SHAP-Ablat)': tau_sa, 
                 'Kendall (LIME-Ablat)': tau_la, 
+                'Jaccard (Rulex-SHAP)': calc_jaccard(top_rulex, top_shap),
+                'Jaccard (Rulex-LIME)': calc_jaccard(top_rulex, top_lime),
+                'Jaccard (SHAP-LIME)': calc_jaccard(top_shap, top_lime),
                 'Jaccard (Rulex-Ablat)': calc_jaccard(top_rulex, top_ablation),
                 'Jaccard (SHAP-Ablat)': calc_jaccard(top_shap, top_ablation),
                 'Jaccard (LIME-Ablat)': calc_jaccard(top_lime, top_ablation),
-                'Spearman (Rulex-CumAblat)': rho_rcum,
-                'Spearman (SHAP-CumAblat)': rho_scum,
-                'Kendall (Rulex-CumAblat)': 0 if np.isnan(tau_rcum) else tau_rcum,     
-                'Kendall (SHAP-CumAblat)': 0 if np.isnan(tau_scum) else tau_scum, 
-                'Jaccard (Rulex-CumAblat)': calc_jaccard(top_rulex, top_cum_ablation),
-                'Jaccard (SHAP-CumAblat)': calc_jaccard(top_shap, top_cum_ablation)
             })
 
         # 6. INNER AVERAGING (The "Final Output" for this dataset)
