@@ -1,4 +1,4 @@
-﻿Attribute,Readmitted,Rulex,SHAP,LIME,Ablation ,Cum_Ablation,Curr_Pred,Org_Pred
+﻿Attribute,Readmitted,Rulex,SHAP,LIME,Ablation,Cum_Ablation,Curr_Pred,Org_Pred
 acetohexamide,1,0.0,0.0,0.0,0.000000027,0.0,0.0868858691,0.0868858662
 chlorpropamide,1,0.0,0.0,0.0394045279,0.000000027,0.0,0.0868858691,0.0868858662
 citoglipton,1,0.0,0.0,0.0,0.000000027,0.0,0.0868858691,0.0868858662

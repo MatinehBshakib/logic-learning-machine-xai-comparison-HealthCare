@@ -3,7 +3,7 @@ import os
 
 def main():
       analysis = XAIComparativeAnalysis()
-      base_folder = 'outputs__'
+      base_folder = 'outputs'
       files_to_process = [
       'Breast_Cancer.csv', 
       'CDC_Diabetes.csv',
@@ -12,7 +12,7 @@ def main():
       'Diabetic_Retinopathy_Debrecen.csv',
       'Glioma_Grading_Clinical.csv',
       'Hepatit_C_Virus.csv',
-      'Myocardial_Infarction.csv',
+      'Myocardial_Infraction.csv',
       'Obesity_level.csv',
       ]
       files_to_process = [os.path.join(base_folder, f) for f in files_to_process]
