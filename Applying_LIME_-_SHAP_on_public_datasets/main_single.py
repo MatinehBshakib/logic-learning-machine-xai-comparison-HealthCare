@@ -67,8 +67,7 @@ def main():
             optimizer = DROpt()
 
         # Export the raw data before one-hot encoding for Rulex's categorical rule mining
-        loader.export_raw_for_rulex(x_train_raw, x_test_raw, y_train_raw, y_test_raw,
-                                        dataset_name=dataset_name)
+        #loader.export_raw_for_rulex(x_train_raw, x_test_raw, y_train_raw, y_test_raw,dataset_name=dataset_name)
         # 5. Optimize Train and Test Separately
         if optimizer:
             print("\n--- Optimizing Training Set ---")

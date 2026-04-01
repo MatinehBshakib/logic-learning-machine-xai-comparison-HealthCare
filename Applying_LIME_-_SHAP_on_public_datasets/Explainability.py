@@ -28,6 +28,7 @@ class Explainability:
             n_features = len(x_train.columns)
             total_instances = len(x_test)
             
+            np.random.seed(42)
             #Iterate through each instance in the test set
             for i in range(total_instances):
                   try:
@@ -148,7 +149,7 @@ class Explainability:
                   x_test_batch = x_test_repeated.copy()
                   
                   # Sample random values for the entire batch at once
-                  bg_samples = x_train[feat_name].sample(n=len(x_test_batch), replace=True).values
+                  bg_samples = x_train[feat_name].sample(n=len(x_test_batch), replace=True, random_state=42).values
                   x_test_batch[feat_name] = bg_samples
                   
                   # Predict the entire batch in ONE model call
@@ -222,7 +223,7 @@ class Explainability:
                   x_test_batch = x_test_repeated.copy()
                   
                   # Sample enough random background rows for the entire batch in one go
-                  bg_samples = x_train[features_to_mask].sample(n=len(x_test_batch), replace=True).values
+                  bg_samples = x_train[features_to_mask].sample(n=len(x_test_batch), replace=True, random_state=42).values
                   
                   # Overwrite all masked features simultaneously 
                   x_test_batch[features_to_mask] = bg_samples
