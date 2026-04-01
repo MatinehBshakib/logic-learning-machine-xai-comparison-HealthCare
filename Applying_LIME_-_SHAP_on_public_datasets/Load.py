@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from sklearn.impute import SimpleImputer
 from sklearn.datasets import fetch_openml
+from imblearn.over_sampling import SMOTE
 from scipy.io import arff
 import json
 
@@ -197,3 +198,78 @@ class LoadData:
             
             if bad_cols:
                 raise ValueError(f"CRITICAL ERROR: {name} in '{dataset_name}' contains non-numeric columns: {bad_cols}.")
+    
+    def drop_correlated(self, x_train, x_test, threshold=0.90):
+        """Drops features that are more than 'threshold' correlated.
+        Learns which columns to drop from train, then applies same to test."""
+        corr_matrix = x_train.corr().abs()
+        upper = corr_matrix.where(
+            np.triu(np.ones(corr_matrix.shape), k=1).astype(bool)
+        )
+        cols_to_drop = [col for col in upper.columns if any(upper[col] > threshold)]
+        x_train = x_train.drop(columns=cols_to_drop)
+        x_test  = x_test.drop(columns=cols_to_drop, errors='ignore')
+        print(f"Dropped {len(cols_to_drop)} correlated columns: {cols_to_drop}")
+        return x_train, x_test
+    
+    def export_balanced_for_rulex(self, x_train, y_train, x_test, y_test,
+                               dataset_name="Dataset"):
+        """Balances training data with SMOTE before exporting for Rulex."""
+        target_col = y_train.columns[0] if isinstance(y_train, pd.DataFrame) else 'Target'
+        y_tr = y_train.iloc[:, 0] if isinstance(y_train, pd.DataFrame) else y_train
+
+        sm = SMOTE(random_state=42)
+        x_bal, y_bal = sm.fit_resample(x_train, y_tr)
+
+        x_bal_df = pd.DataFrame(x_bal, columns=x_train.columns)
+        y_bal_df  = pd.DataFrame(y_bal, columns=[target_col])
+        x_bal_df['Set_Type'] = 'Train'
+        
+        y_te = y_test.copy() if isinstance(y_test, pd.DataFrame) else y_test.to_frame(name=target_col)
+        x_test_df = x_test.copy()
+        x_test_df['Set_Type'] = 'Test'
+        
+        train_export = pd.concat([x_bal_df, y_bal_df], axis=1)
+        test_export  = pd.concat([x_test_df, y_te], axis=1)
+        full_df = pd.concat([train_export, test_export])
+        full_df.index.name = 'id'
+        filename = f"{dataset_name}_rulex_BALANCED_data.csv"
+        full_df.to_csv(filename, index=True)
+        print(f"Balanced Rulex export saved to '{filename}'.")
+        
+    def export_raw_for_rulex(self, x_train_raw, x_test_raw, y_train, y_test,
+                          dataset_name="Dataset"):
+        """Exports data BEFORE one-hot encoding — for Rulex categorical rule mining."""
+        # Reuse the exact same saving logic, just with a different filename
+        self.export_data_for_rulex(
+            x_train_raw, x_test_raw,
+            y_train, y_test,
+            dataset_name=dataset_name,
+            filename="rulex_RAW_data.csv"   # different filename so it doesn't overwrite
+    )
+        
+    def discretize_for_rulex(self, df):     
+        df_disc = df.copy()
+        num_cols = df_disc.select_dtypes(include='number').columns
+        all_labels = ['Low', 'Mid', 'High', 'VeryHigh']
+        
+        for col in num_cols:
+            if df_disc[col].nunique() > 10:  # only bin truly continuous columns
+                try:
+                    # First figure out how many unique bins actually result
+                    _, bins = pd.qcut(df_disc[col], q=4, retbins=True, duplicates='drop')
+                    n_bins = len(bins) - 1  # number of actual bins created
+                    
+                    if n_bins < 2:
+                        # Too few unique values to bin meaningfully — skip this column
+                        continue
+                    
+                    # Use only as many labels as there are actual bins
+                    labels = all_labels[:n_bins]
+                    df_disc[col] = pd.qcut(df_disc[col], q=4,
+                                        labels=labels,
+                                        duplicates='drop')
+                except Exception as e:
+                    print(f"Could not discretize column '{col}': {e} — skipping.")
+                    continue
+        return df_disc

@@ -1,5 +1,6 @@
 import random
 import numpy as np
+import os
 from sklearn.model_selection import train_test_split
 from Load import LoadData
 from sklearn.preprocessing import LabelEncoder
@@ -16,7 +17,7 @@ random.seed(42)
 
 def main():
     loader = LoadData()
-    for dataset_name, source, target_list in loader.load_dataset_config("dataset_config.json"):
+    for dataset_name, source, target_list in loader.load_dataset_config(os.path.join(os.path.dirname(__file__), "dataset_config.json")):
         print(f"\n>>> Processing: {dataset_name}")
         # 1. Load file (Dynamic Checking)
         if str(source).isdigit():
@@ -65,6 +66,9 @@ def main():
         elif dataset_name == "Diabetic_Retinopathy":
             optimizer = DROpt()
 
+        # Export the raw data before one-hot encoding for Rulex's categorical rule mining
+        loader.export_raw_for_rulex(x_train_raw, x_test_raw, y_train_raw, y_test_raw,
+                                        dataset_name=dataset_name)
         # 5. Optimize Train and Test Separately
         if optimizer:
             print("\n--- Optimizing Training Set ---")
@@ -92,12 +96,20 @@ def main():
             
             x_train = x_train.apply(pd.to_numeric, errors='coerce').fillna(0)
             x_test = x_test.apply(pd.to_numeric, errors='coerce').fillna(0)
-            
+        
+        x_train, x_test = loader.drop_correlated(x_train, x_test, threshold=0.90)
         # Validate that all data is numeric before proceeding    
         loader.validate_numeric(dataset_name, x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test)
-        # 6. Export the cleanly processed data 
-        loader.export_data_for_rulex(x_train, x_test, y_train, y_test, dataset_name=dataset_name)
+        #Discretize for Rulex (bins numbers into groups)
+        x_train_disc = loader.discretize_for_rulex(x_train)
+        x_test_disc  = loader.discretize_for_rulex(x_test)
 
+        loader.export_data_for_rulex(x_train_disc, x_test_disc, y_train, y_test, dataset_name=dataset_name)
+        # For imbalanced datasets, also export a balanced version for Rulex to mine balanced rules
+        imbalanced_datasets = ['CDC_Diabetes', 'Cervical_Cancer']
+        if dataset_name in imbalanced_datasets:
+            loader.export_balanced_for_rulex(x_train, y_train, x_test, y_test,
+                                             dataset_name=dataset_name)
         # 7. Execute Strategy
         counts = y_train.iloc[:, 0].value_counts()
         imbalance_ratio = counts[0] / counts[1] if 1 in counts and counts[1] > 0 else 1

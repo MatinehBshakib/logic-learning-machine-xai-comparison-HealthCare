@@ -43,9 +43,8 @@ def main():
     
     x_train = x_train.apply(pd.to_numeric, errors='coerce').fillna(0)
     x_test = x_test.apply(pd.to_numeric, errors='coerce').fillna(0)
-    
-    # 4. Export Cleaned Data for Rulex
-    loader.export_data_for_rulex(x_train, x_test, y_train, y_test, dataset_name=dataset_name)
+    #drop correlated features
+    x_train, x_test = loader.drop_correlated(x_train, x_test, threshold=0.90)
 
     # 5. Strategy Execution
     strategy = HierarchicalStrategy(

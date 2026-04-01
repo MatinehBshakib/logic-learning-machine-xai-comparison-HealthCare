@@ -44,6 +44,9 @@ def main():
     x_train = x_train.apply(pd.to_numeric, errors='coerce').fillna(0)
     x_test = x_test.apply(pd.to_numeric, errors='coerce').fillna(0)
     
+    #drop correlated features
+    x_train, x_test = loader.drop_correlated(x_train, x_test, threshold=0.90)
+    
     # Validate that all data is perfectly numeric before proceeding
     loader.validate_numeric(dataset_name, x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test)
     

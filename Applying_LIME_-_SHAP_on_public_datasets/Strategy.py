@@ -3,6 +3,7 @@ from sklearn.ensemble import RandomForestClassifier
 from Explainability import Explainability
 from sklearn.metrics import accuracy_score
 from sklearn.multioutput import MultiOutputClassifier
+from Load import LoadData as loader
 import pandas as pd
 import numpy as np
 
@@ -68,6 +69,18 @@ class HierarchicalStrategy(BaseStrategy):
                   gate_pred = gate_model.predict(x_test)
                   print(f"Gatekeeper Accuracy: {accuracy_score(y_test_gate, gate_pred):.4f}")
                   
+                  # Add gatekeeper probability as a new feature for the specialist
+                  gate_proba_train = gate_model.predict_proba(x_train)[:, 1]
+                  gate_proba_test  = gate_model.predict_proba(x_test)[:, 1]
+                  x_train = x_train.copy()
+                  x_test  = x_test.copy()
+                  x_train[f'Gatekeeper_{category}_Score'] = gate_proba_train
+                  x_test[f'Gatekeeper_{category}_Score']  = gate_proba_test
+                  
+                  # Export data for Rulex 
+                  loader.export_data_for_rulex(x_train, x_test, y_train, y_test,
+                               dataset_name=f"Hierarchical_{category}")
+
                   #Level 2: Specialist 
                   mask_train = y_train_gate == 1
                   x_spec_train = x_train[mask_train] # Select rows where gatekeeper predicts 1
