@@ -101,8 +101,7 @@ def main():
         # Validate that all data is numeric before proceeding    
         loader.validate_numeric(dataset_name, x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test)
         #Discretize for Rulex (bins numbers into groups)
-        x_train_disc = loader.discretize_for_rulex(x_train)
-        x_test_disc  = loader.discretize_for_rulex(x_test)
+        x_train_disc, x_test_disc = loader.discretize_for_rulex(x_train, x_test)
 
         loader.export_data_for_rulex(x_train_disc, x_test_disc, y_train, y_test, dataset_name=dataset_name)
         # For imbalanced datasets, also export a balanced version for Rulex to mine balanced rules

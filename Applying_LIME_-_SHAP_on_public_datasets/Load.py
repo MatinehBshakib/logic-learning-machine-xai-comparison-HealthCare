@@ -215,6 +215,10 @@ class LoadData:
     def export_balanced_for_rulex(self, x_train, y_train, x_test, y_test,
                                dataset_name="Dataset"):
         """Balances training data with SMOTE before exporting for Rulex."""
+        # Abort SMOTE if it's a multi-label dataset
+        if isinstance(y_train, pd.DataFrame) and y_train.shape[1] > 1:
+            print(f"Skipping SMOTE for {dataset_name}: Multi-label balancing is not supported.")
+            return
         target_col = y_train.columns[0] if isinstance(y_train, pd.DataFrame) else 'Target'
         y_tr = y_train.iloc[:, 0] if isinstance(y_train, pd.DataFrame) else y_train
 
@@ -248,28 +252,34 @@ class LoadData:
             filename="rulex_RAW_data.csv"   # different filename so it doesn't overwrite
     )
         
-    def discretize_for_rulex(self, df):     
-        df_disc = df.copy()
-        num_cols = df_disc.select_dtypes(include='number').columns
+    def discretize_for_rulex(self, x_train, x_test):     
+        x_train_disc = x_train.copy()
+        x_test_disc = x_test.copy()
+        num_cols = x_train_disc.select_dtypes(include='number').columns
         all_labels = ['Low', 'Mid', 'High', 'VeryHigh']
         
         for col in num_cols:
-            if df_disc[col].nunique() > 10:  # only bin truly continuous columns
+            if x_train_disc[col].nunique() > 10:  # Check condition ONLY on Train
                 try:
-                    # First figure out how many unique bins actually result
-                    _, bins = pd.qcut(df_disc[col], q=4, retbins=True, duplicates='drop')
-                    n_bins = len(bins) - 1  # number of actual bins created
+                    # 1. Fit on Train to get the boundaries (bins)
+                    _, bins = pd.qcut(x_train_disc[col], q=4, retbins=True, duplicates='drop')
+                    n_bins = len(bins) - 1 
                     
                     if n_bins < 2:
-                        # Too few unique values to bin meaningfully — skip this column
                         continue
                     
-                    # Use only as many labels as there are actual bins
                     labels = all_labels[:n_bins]
-                    df_disc[col] = pd.qcut(df_disc[col], q=4,
-                                        labels=labels,
-                                        duplicates='drop')
+                    
+                    # Expand the outer limits so test values outside the train range don't become NaN
+                    bins[0] = -np.inf
+                    bins[-1] = np.inf
+                    
+                    # 2. Transform both using the exact same boundaries
+                    x_train_disc[col] = pd.cut(x_train_disc[col], bins=bins, labels=labels, include_lowest=True)
+                    x_test_disc[col]  = pd.cut(x_test_disc[col], bins=bins, labels=labels, include_lowest=True)
+                    
                 except Exception as e:
                     print(f"Could not discretize column '{col}': {e} — skipping.")
                     continue
-        return df_disc
+                    
+        return x_train_disc, x_test_disc

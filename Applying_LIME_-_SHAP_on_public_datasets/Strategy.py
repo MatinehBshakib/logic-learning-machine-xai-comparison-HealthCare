@@ -3,7 +3,7 @@ from sklearn.ensemble import RandomForestClassifier
 from Explainability import Explainability
 from sklearn.metrics import accuracy_score
 from sklearn.multioutput import MultiOutputClassifier
-from Load import LoadData as loader
+from Load import LoadData
 import pandas as pd
 import numpy as np
 
@@ -78,6 +78,7 @@ class HierarchicalStrategy(BaseStrategy):
                   x_test[f'Gatekeeper_{category}_Score']  = gate_proba_test
                   
                   # Export data for Rulex 
+                  loader = LoadData()
                   loader.export_data_for_rulex(x_train, x_test, y_train, y_test,
                                dataset_name=f"Hierarchical_{category}")
 
