@@ -42,41 +42,9 @@ class HierarchicalStrategy(BaseStrategy):
             self.group_mapping = group_mapping
             self.algo = algo
             
-      def _combine_explanations(self, gate_df, spec_df, gate_weight, spec_weight, val_col):
-            """
-            Combines per-instance gatekeeper and specialist DataFrames IN-MEMORY.
-            Weights BOTH the feature values and the base values.
-            """
-            # Base: gatekeeper features (covers ALL test instances)
-            combined = gate_df[['id', 'feature', 'feature_value', 'base_value', val_col]].copy()
-            
-            # Add weighted specialist contribution where it exists (positive instances)
-            if spec_df is not None and not spec_df.empty:
-                  spec_contrib = spec_df[['id', 'feature', 'base_value', val_col]].copy()
-                  
-                  merged = pd.merge(combined, spec_contrib, on=['id', 'feature'], how='left', suffixes=('_gate', '_spec'))
-                  
-                  # Fill NaNs with 0 for patients the specialist never saw
-                  merged[f'{val_col}_spec'] = merged[f'{val_col}_spec'].fillna(0)
-                  merged['base_value_spec'] = merged['base_value_spec'].fillna(0)
-                  
-                  # Mathematically weight BOTH the feature values and the base values
-                  combined[val_col] = (gate_weight * merged[f'{val_col}_gate']) + (spec_weight * merged[f'{val_col}_spec'])
-                  combined['base_value'] = (gate_weight * merged['base_value_gate']) + (spec_weight * merged['base_value_spec'])
-            else:
-                  # If no positive instances, just weight the gatekeeper alone
-                  combined[val_col] = combined[val_col] * gate_weight
-                  combined['base_value'] = combined['base_value'] * gate_weight
-                  
-            return combined
-
       def execute(self, x_train, x_test, y_train, y_test):
             if not isinstance(y_train, pd.DataFrame):
                   raise ValueError("Target y must be a DataFrame for Hierarchical Strategy")    
-            
-            # Create safe copies to accumulate scores for Rulex
-            x_train_accumulated = x_train.copy()
-            x_test_accumulated = x_test.copy()
             
             results = {}
             for category, subtypes in self.group_mapping.items():
@@ -94,35 +62,11 @@ class HierarchicalStrategy(BaseStrategy):
                   else:
                         gate_model = RandomForestClassifier(class_weight='balanced', random_state=42, n_jobs=-1)
                   
-                  gate_model.fit(x_train_accumulated, y_train_gate)
-                  gate_pred = gate_model.predict(x_test_accumulated)
-                  print(f"Gatekeeper Accuracy: {accuracy_score(y_test_gate, gate_pred):.4f}")
+                  gate_model.fit(x_train, y_train_gate)
                   
-                  # Compute Weights
-                  positive_rate = float(gate_pred.mean())
-                  gate_weight = 1.0 - positive_rate
-                  spec_weight = positive_rate
-
-                  # >>> FIX: Save a snapshot of the data exactly as the Gatekeeper saw it
-                  x_train_gate_eval = x_train_accumulated.copy()
-                  x_test_gate_eval  = x_test_accumulated.copy()
-
-                  # Rulex Fix: Add gatekeeper probability as a new feature (for Rulex and Specialist)
-                  gate_proba_train = gate_model.predict_proba(x_train_accumulated)[:, 1]
-                  gate_proba_test  = gate_model.predict_proba(x_test_accumulated)[:, 1]
-                  x_train_accumulated[f'Gatekeeper_{category}_Score'] = gate_proba_train
-                  x_test_accumulated[f'Gatekeeper_{category}_Score']  = gate_proba_test
-
-                  # 1. Run XAI on Gatekeeper 
-                  # >>> FIX: Pass the snapshots without the extra column!
-                  print(f"Generating Gatekeeper Explanations for {category}...")
-                  gate_shap_df = self.run_shap(gate_model, x_train_gate_eval, x_test_gate_eval, output_filename=None)
-                  gate_lime_df = self.run_lime(gate_model, x_train_gate_eval, x_test_gate_eval, class_names=[f"No_{category}", f"Yes_{category}"], output_filename=None)
-                  gate_ablation_df = self.run_ablation(gate_model, x_train_gate_eval, x_test_gate_eval, output_filename=None, n_samples=15)
-
                   # Specialist 
                   mask_train = y_train_gate == 1
-                  x_spec_train = x_train_accumulated[mask_train] 
+                  x_spec_train = x_train[mask_train] 
                   y_spec_train = y_train.loc[mask_train, valid_subtypes] 
                   
                   spec_model = None
@@ -134,48 +78,32 @@ class HierarchicalStrategy(BaseStrategy):
                         spec_model = MultiOutputClassifier(base)
                         spec_model.fit(x_spec_train, y_spec_train)
                   
-                  pos_indices = np.where(gate_pred == 1)[0]
-                  final_pred = pd.DataFrame(0, index=y_test.index, columns=valid_subtypes)
-
-                  if len(pos_indices) > 0 and spec_model is not None:
-                        spec_pred = spec_model.predict(x_test_accumulated.iloc[pos_indices])
-                        final_pred.iloc[pos_indices] = spec_pred
-                        
-                        x_test_spec = x_test_accumulated.iloc[pos_indices] 
+                  if spec_model is not None:
                         for idx, sub_col in enumerate(valid_subtypes):
                               estimator = spec_model.estimators_[idx] 
                               
-                              # 2. Run XAI on Specialist (IN-MEMORY)
-                              spec_shap_df = self.run_shap(estimator, x_spec_train, x_test_spec, output_filename=None)
-                              spec_lime_df = self.run_lime(estimator, x_spec_train, x_test_spec, class_names=[f"No_{sub_col}", sub_col], output_filename=None)
-                              spec_ablation_df = self.run_ablation(estimator, x_spec_train, x_test_spec, output_filename=None, n_samples=15)
+                              # 1. Direct Evaluation on the Full Test Set
+                              # By evaluating the Specialist model over ALL patients, we guarantee 
+                              # that SHAP, LIME, and Ablation perfectly correlate to the exact same curve.
+                              print(f"Generating Explanations for Specialist: {sub_col}...")
                               
-                              # 3. Combine Explanations and Save Final CSVs
-                              print(f"Combining Explanations for {sub_col}...")
-                              
-                              # SHAP
-                              combined_shap = self._combine_explanations(gate_shap_df, spec_shap_df, gate_weight, spec_weight, val_col='shap_value')
-                              combined_shap.to_csv(f"shap_{category}_{sub_col}.csv", index=False)
-                              
-                              # LIME
-                              combined_lime = self._combine_explanations(gate_lime_df, spec_lime_df, gate_weight, spec_weight, val_col='lime_value')
-                              combined_lime.to_csv(f"lime_{category}_{sub_col}.csv", index=False)
-                              
-                              # ABLATION
-                              combined_ablation = self._combine_explanations(gate_ablation_df, spec_ablation_df, gate_weight, spec_weight, val_col='ablation_value')
-                              combined_ablation.to_csv(f"ablation_{category}_{sub_col}.csv", index=False)
-
-                              # 4. Run Cumulative Ablation (Requires the saved file)
-                              self.run_cumulative_ablation(gate_model, x_train_gate_eval, x_test_gate_eval, combined_ablation, output_filename=f"cum_ablation_{category}_{sub_col}.csv", n_samples=15)
+                              self.run_shap(estimator, x_spec_train, x_test, output_filename=f"shap_{category}_{sub_col}.csv")
+                              self.run_lime(estimator, x_spec_train, x_test, class_names=[f"No_{sub_col}", sub_col], output_filename=f"lime_{category}_{sub_col}.csv")
+                              ablation_df = self.run_ablation(estimator, x_spec_train, x_test, output_filename=f"ablation_{category}_{sub_col}.csv", n_samples=15)
+                              self.run_cumulative_ablation(estimator, x_spec_train, x_test, ablation_df, output_filename=f"cum_ablation_{category}_{sub_col}.csv", n_samples=15)
 
                   results[category] = (gate_model, spec_model)
             
-            # --- ONE UNIFIED RULEX EXPORT ---
-            print("\n>>> Exporting unified Hierarchical data for Rulex...")
+            # --- 2. The Missing Discretization Step! ---
+            # This was missing in the original Myocardial script. Bins the variables so Rulex 
+            # can finally "see" the exact same decision boundaries as XGBoost.
+            print("\n>>> Discretizing and Exporting Hierarchical data for Rulex...")
             data_loader = LoadData()
-            data_loader.export_data_for_rulex(x_train_accumulated, x_test_accumulated, y_train, y_test, dataset_name="Myocardial_Infarction")
+            x_train_disc, x_test_disc = data_loader.discretize_for_rulex(x_train, x_test)
+            data_loader.export_data_for_rulex(x_train_disc, x_test_disc, y_train, y_test, dataset_name="Myocardial_Infarction")
 
             return results
+      
 class MultiLabelStrategy(BaseStrategy):
       def __init__(self, algo='xgb'):
             self.algo = algo
