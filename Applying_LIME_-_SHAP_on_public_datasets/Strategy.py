@@ -51,20 +51,25 @@ class HierarchicalStrategy(BaseStrategy):
                   print(f"\n>>> PROCESSING FLOW: {category}")
                   valid_subtypes = [c for c in subtypes if c in y_train.columns]
                   if not valid_subtypes:
+                        print(f"Skipping {category}: columns not found in dataset")
                         continue
                   
-                  # Gatekeeper 
+                  # Level 1: Gatekeeper 
                   y_train_gate = y_train[valid_subtypes].max(axis=1)
                   y_test_gate  = y_test[valid_subtypes].max(axis=1)
 
+                  print(f"Training Gatekeeper for {category}...")
                   if self.algo == 'xgb':
                         gate_model = xgb.XGBClassifier(eval_metric='logloss', random_state=42, n_jobs=-1)
                   else:
                         gate_model = RandomForestClassifier(class_weight='balanced', random_state=42, n_jobs=-1)
                   
+                  # Fit Gatekeeper on pure, original data
                   gate_model.fit(x_train, y_train_gate)
+                  gate_pred = gate_model.predict(x_test)
+                  print(f"Gatekeeper Accuracy: {accuracy_score(y_test_gate, gate_pred):.4f}")
                   
-                  # Specialist 
+                  # Level 2: Specialist 
                   mask_train = y_train_gate == 1
                   x_spec_train = x_train[mask_train] 
                   y_spec_train = y_train.loc[mask_train, valid_subtypes] 
@@ -77,26 +82,34 @@ class HierarchicalStrategy(BaseStrategy):
                               base = RandomForestClassifier(class_weight='balanced', random_state=42, n_jobs=-1)
                         spec_model = MultiOutputClassifier(base)
                         spec_model.fit(x_spec_train, y_spec_train)
+                  else:
+                        print(f"Warning: No positive training examples for {category}.")
                   
-                  if spec_model is not None:
+                  # Find the patients that actually passed the gatekeeper
+                  pos_indices = np.where(gate_pred == 1)[0]
+                  if len(pos_indices) > 0 and spec_model is not None:
+                        x_test_spec = x_test.iloc[pos_indices] 
+                        
                         for idx, sub_col in enumerate(valid_subtypes):
                               estimator = spec_model.estimators_[idx] 
                               
-                              # 1. Direct Evaluation on the Full Test Set
-                              # By evaluating the Specialist model over ALL patients, we guarantee 
-                              # that SHAP, LIME, and Ablation perfectly correlate to the exact same curve.
-                              print(f"Generating Explanations for Specialist: {sub_col}...")
+                              # 1. Evaluate ONLY on the Specialist Population
+                              print(f"\nGenerating Explanations for Specialist: {sub_col}...")
                               
-                              self.run_shap(estimator, x_spec_train, x_test, output_filename=f"shap_{category}_{sub_col}.csv")
-                              self.run_lime(estimator, x_spec_train, x_test, class_names=[f"No_{sub_col}", sub_col], output_filename=f"lime_{category}_{sub_col}.csv")
-                              ablation_df = self.run_ablation(estimator, x_spec_train, x_test, output_filename=f"ablation_{category}_{sub_col}.csv", n_samples=15)
-                              self.run_cumulative_ablation(estimator, x_spec_train, x_test, ablation_df, output_filename=f"cum_ablation_{category}_{sub_col}.csv", n_samples=15)
+                              print(f"Visualizing SHAP for Specialist Subtype {sub_col}...")
+                              self.run_shap(estimator, x_spec_train, x_test_spec, output_filename=f"shap_{category}_{sub_col}.csv")
+                              
+                              print(f"Visualizing LIME for Specialist Subtype {sub_col}...")
+                              self.run_lime(estimator, x_spec_train, x_test_spec, class_names=[f"No_{sub_col}", sub_col], output_filename=f"lime_{category}_{sub_col}.csv")
+                              
+                              ablation_df = self.run_ablation(estimator, x_spec_train, x_test_spec, output_filename=f"ablation_{category}_{sub_col}.csv", n_samples=15)
+                              self.run_cumulative_ablation(estimator, x_spec_train, x_test_spec, ablation_df, output_filename=f"cum_ablation_{category}_{sub_col}.csv", n_samples=15)
+                  else:
+                        print(f"Warning: No positive predictions from Gatekeeper for {category}, skipping Specialist evaluation.")
 
                   results[category] = (gate_model, spec_model)
             
-            # --- 2. The Missing Discretization Step! ---
-            # This was missing in the original Myocardial script. Bins the variables so Rulex 
-            # can finally "see" the exact same decision boundaries as XGBoost.
+            # --- 2. Clean Discretization & Export ---
             print("\n>>> Discretizing and Exporting Hierarchical data for Rulex...")
             data_loader = LoadData()
             x_train_disc, x_test_disc = data_loader.discretize_for_rulex(x_train, x_test)
