@@ -36,6 +36,7 @@ class SingleOutput(BaseStrategy):
             ablation_df = self.run_ablation(clf, x_train, x_test, output_filename=f"ablation_{target_col}.csv")
             self.run_cumulative_ablation(clf, x_train, x_test, ablation_df, output_filename=f"cum_ablation_{target_col}.csv")
             return clf
+
 class HierarchicalStrategy(BaseStrategy):
       def __init__(self, group_mapping, algo='xgb'):
             self.group_mapping = group_mapping
@@ -44,7 +45,11 @@ class HierarchicalStrategy(BaseStrategy):
       def execute(self, x_train, x_test, y_train, y_test):
             if not isinstance(y_train, pd.DataFrame):
                   raise ValueError("Target y must be a DataFrame for Hierarchical Strategy")    
-            #Split the data
+            
+            # Create safe copies to accumulate scores without messing up original data
+            x_train_accumulated = x_train.copy()
+            x_test_accumulated = x_test.copy()
+            
             results = {}
             for category, subtypes in self.group_mapping.items():
                   print(f"\n>>> PROCESSING FLOW: {category}")
@@ -65,26 +70,24 @@ class HierarchicalStrategy(BaseStrategy):
                         gate_model = RandomForestClassifier(class_weight='balanced', random_state=42, n_jobs=-1)
                   
                   #Evaluate 
-                  gate_model.fit(x_train, y_train_gate)
-                  gate_pred = gate_model.predict(x_test)
+                  gate_model.fit(x_train_accumulated, y_train_gate)
+                  gate_pred = gate_model.predict(x_test_accumulated)
                   print(f"Gatekeeper Accuracy: {accuracy_score(y_test_gate, gate_pred):.4f}")
                   
-                  # Add gatekeeper probability as a new feature for the specialist
-                  gate_proba_train = gate_model.predict_proba(x_train)[:, 1]
-                  gate_proba_test  = gate_model.predict_proba(x_test)[:, 1]
-                  x_train = x_train.copy()
-                  x_test  = x_test.copy()
-                  x_train[f'Gatekeeper_{category}_Score'] = gate_proba_train
-                  x_test[f'Gatekeeper_{category}_Score']  = gate_proba_test
+                  # Add gatekeeper probability as a new feature for the specialist AND the final export
+                  gate_proba_train = gate_model.predict_proba(x_train_accumulated)[:, 1]
+                  gate_proba_test  = gate_model.predict_proba(x_test_accumulated)[:, 1]
+                  
+                  x_train_accumulated[f'Gatekeeper_{category}_Score'] = gate_proba_train
+                  x_test_accumulated[f'Gatekeeper_{category}_Score']  = gate_proba_test
 
                   #Level 2: Specialist 
                   mask_train = y_train_gate == 1
-                  x_spec_train = x_train[mask_train] # Select rows where gatekeeper predicts 1
+                  x_spec_train = x_train_accumulated[mask_train] # Select rows where gatekeeper predicts 1
                   y_spec_train = y_train.loc[mask_train, valid_subtypes] # Corresponding subtypes
                   
                   spec_model = None
                   if len(x_spec_train) > 5:
-                        
                         if self.algo == 'xgb':
                               base = xgb.XGBClassifier(eval_metric='logloss', random_state=42, n_jobs=-1)
                         else:
@@ -95,50 +98,45 @@ class HierarchicalStrategy(BaseStrategy):
                         print(f"Warning: No positive training examples for {category}.")
                   
                   #Evaluate Specialist
-                  #conditional prediction on gatekeeper positive
                   final_pred = pd.DataFrame(0, index=y_test.index, columns=valid_subtypes)
                   pos_indices = np.where(gate_pred == 1)[0]
 
                   if len(pos_indices) > 0 and spec_model is not None:
-                        spec_pred = spec_model.predict(x_test.iloc[pos_indices])
+                        spec_pred = spec_model.predict(x_test_accumulated.iloc[pos_indices])
                         final_pred.iloc[pos_indices] = spec_pred
                         
-                        x_test_spec = x_test.iloc[pos_indices] # Subset of test data relevant to specialist
-                        # Iterate through each sub-category column and its corresponding trained estimator
+                        x_test_spec = x_test_accumulated.iloc[pos_indices] # Subset of test data relevant to specialist
+                        # Iterate through each sub-category column
                         for idx, sub_col in enumerate(valid_subtypes):
-                              estimator = spec_model.estimators_[idx] # Extract the specific model for this sub-category
+                              estimator = spec_model.estimators_[idx] 
+                              
                               print(f"Visualizing SHAP for Specialist Subtype {sub_col}...")
-                              self.run_shap(estimator, 
-                                            x_spec_train, 
-                                            x_test_spec, 
-                                            output_filename=f"shap_{category}_{sub_col}.csv")
+                              self.run_shap(estimator, x_spec_train, x_test_spec, output_filename=f"shap_{category}_{sub_col}.csv")
+                              
                               print(f"Visualizing LIME for Specialist Subtype {sub_col}...")
                               sub_class_names = [f"No_{sub_col}", sub_col]
-                              self.run_lime(estimator, 
-                                            x_spec_train, 
-                                            x_test_spec, 
-                                            class_names= sub_class_names,
-                                            output_filename=f"lime_{category}_{sub_col}.csv")
-                              ablation_df = self.run_ablation(estimator, 
-                                                              x_spec_train, 
-                                                              x_test_spec, 
-                                                              output_filename=f"ablation_{category}_{sub_col}.csv",
-                                                              n_samples=15)
-                              self.run_cumulative_ablation(estimator, 
-                                                           x_spec_train,
-                                                           x_test_spec,
-                                                           ablation_df, 
-                                                           output_filename=f"cum_ablation_{category}_{sub_col}.csv",
-                                                           n_samples=15)
+                              self.run_lime(estimator, x_spec_train, x_test_spec, class_names=sub_class_names, output_filename=f"lime_{category}_{sub_col}.csv")
+                              
+                              ablation_df = self.run_ablation(estimator, x_spec_train, x_test_spec, output_filename=f"ablation_{category}_{sub_col}.csv", n_samples=15)
+                              self.run_cumulative_ablation(estimator, x_spec_train, x_test_spec, ablation_df, output_filename=f"cum_ablation_{category}_{sub_col}.csv", n_samples=15)
                   else:
                         print(f"Warning: No positive predictions from Gatekeeper for {category}, skipping Specialist evaluation.")
+                  
                   results[category] = (gate_model, spec_model)
-             # Export data for Rulex 
-            loader = LoadData()
-            loader.export_data_for_rulex(x_train, x_test, y_train, y_test,
-                              dataset_name=f"Hierarchical_{category}")
-            return results
+            
+            # --- ONE UNIFIED RULEX EXPORT AT THE VERY END ---
+            print("\n>>> Exporting unified Hierarchical data for Rulex...")
+            data_loader = LoadData() # instantiate the loader class
+            data_loader.export_data_for_rulex(
+                x_train_accumulated, 
+                x_test_accumulated, 
+                y_train, 
+                y_test,
+                dataset_name="Myocardial_Infarction"
+            )
 
+            return results
+                    
 class MultiLabelStrategy(BaseStrategy):
       def __init__(self, algo='xgb'):
             self.algo = algo
