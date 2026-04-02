@@ -76,11 +76,6 @@ class HierarchicalStrategy(BaseStrategy):
                   x_test  = x_test.copy()
                   x_train[f'Gatekeeper_{category}_Score'] = gate_proba_train
                   x_test[f'Gatekeeper_{category}_Score']  = gate_proba_test
-                  
-                  # Export data for Rulex 
-                  loader = LoadData()
-                  loader.export_data_for_rulex(x_train, x_test, y_train, y_test,
-                               dataset_name=f"Hierarchical_{category}")
 
                   #Level 2: Specialist 
                   mask_train = y_train_gate == 1
@@ -138,6 +133,10 @@ class HierarchicalStrategy(BaseStrategy):
                   else:
                         print(f"Warning: No positive predictions from Gatekeeper for {category}, skipping Specialist evaluation.")
                   results[category] = (gate_model, spec_model)
+             # Export data for Rulex 
+            loader = LoadData()
+            loader.export_data_for_rulex(x_train, x_test, y_train, y_test,
+                              dataset_name=f"Hierarchical_{category}")
             return results
 
 class MultiLabelStrategy(BaseStrategy):
