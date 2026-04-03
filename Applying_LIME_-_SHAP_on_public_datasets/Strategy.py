@@ -46,6 +46,10 @@ class HierarchicalStrategy(BaseStrategy):
             if not isinstance(y_train, pd.DataFrame):
                   raise ValueError("Target y must be a DataFrame for Hierarchical Strategy")    
             
+            # Create safe copies to accumulate scores without messing up original data
+            x_train_accumulated = x_train.copy()
+            x_test_accumulated = x_test.copy()
+            
             results = {}
             for category, subtypes in self.group_mapping.items():
                   print(f"\n>>> PROCESSING FLOW: {category}")
@@ -54,25 +58,33 @@ class HierarchicalStrategy(BaseStrategy):
                         print(f"Skipping {category}: columns not found in dataset")
                         continue
                   
-                  # Level 1: Gatekeeper 
+                  #Level 1: Gatekeeper
                   y_train_gate = y_train[valid_subtypes].max(axis=1)
                   y_test_gate  = y_test[valid_subtypes].max(axis=1)
 
                   print(f"Training Gatekeeper for {category}...")
+                  
                   if self.algo == 'xgb':
                         gate_model = xgb.XGBClassifier(eval_metric='logloss', random_state=42, n_jobs=-1)
                   else:
                         gate_model = RandomForestClassifier(class_weight='balanced', random_state=42, n_jobs=-1)
                   
-                  # Fit Gatekeeper on pure, original data
-                  gate_model.fit(x_train, y_train_gate)
-                  gate_pred = gate_model.predict(x_test)
+                  #Evaluate 
+                  gate_model.fit(x_train_accumulated, y_train_gate)
+                  gate_pred = gate_model.predict(x_test_accumulated)
                   print(f"Gatekeeper Accuracy: {accuracy_score(y_test_gate, gate_pred):.4f}")
                   
-                  # Level 2: Specialist 
+                  # Add gatekeeper probability as a new feature for the specialist AND the final export
+                  gate_proba_train = gate_model.predict_proba(x_train_accumulated)[:, 1]
+                  gate_proba_test  = gate_model.predict_proba(x_test_accumulated)[:, 1]
+                  
+                  x_train_accumulated[f'Gatekeeper_{category}_Score'] = gate_proba_train
+                  x_test_accumulated[f'Gatekeeper_{category}_Score']  = gate_proba_test
+
+                  #Level 2: Specialist 
                   mask_train = y_train_gate == 1
-                  x_spec_train = x_train[mask_train] 
-                  y_spec_train = y_train.loc[mask_train, valid_subtypes] 
+                  x_spec_train = x_train_accumulated[mask_train] # Select rows where gatekeeper predicts 1
+                  y_spec_train = y_train.loc[mask_train, valid_subtypes] # Corresponding subtypes
                   
                   spec_model = None
                   if len(x_spec_train) > 5:
@@ -85,35 +97,43 @@ class HierarchicalStrategy(BaseStrategy):
                   else:
                         print(f"Warning: No positive training examples for {category}.")
                   
-                  # Find the patients that actually passed the gatekeeper
+                  #Evaluate Specialist
+                  final_pred = pd.DataFrame(0, index=y_test.index, columns=valid_subtypes)
                   pos_indices = np.where(gate_pred == 1)[0]
+
                   if len(pos_indices) > 0 and spec_model is not None:
-                        x_test_spec = x_test.iloc[pos_indices] 
+                        spec_pred = spec_model.predict(x_test_accumulated.iloc[pos_indices])
+                        final_pred.iloc[pos_indices] = spec_pred
                         
+                        x_test_spec = x_test_accumulated.iloc[pos_indices] # Subset of test data relevant to specialist
+                        # Iterate through each sub-category column
                         for idx, sub_col in enumerate(valid_subtypes):
                               estimator = spec_model.estimators_[idx] 
-                              
-                              # 1. Evaluate ONLY on the Specialist Population
-                              print(f"\nGenerating Explanations for Specialist: {sub_col}...")
                               
                               print(f"Visualizing SHAP for Specialist Subtype {sub_col}...")
                               self.run_shap(estimator, x_spec_train, x_test_spec, output_filename=f"shap_{category}_{sub_col}.csv")
                               
                               print(f"Visualizing LIME for Specialist Subtype {sub_col}...")
-                              self.run_lime(estimator, x_spec_train, x_test_spec, class_names=[f"No_{sub_col}", sub_col], output_filename=f"lime_{category}_{sub_col}.csv")
+                              sub_class_names = [f"No_{sub_col}", sub_col]
+                              self.run_lime(estimator, x_spec_train, x_test_spec, class_names=sub_class_names, output_filename=f"lime_{category}_{sub_col}.csv")
                               
                               ablation_df = self.run_ablation(estimator, x_spec_train, x_test_spec, output_filename=f"ablation_{category}_{sub_col}.csv", n_samples=15)
                               self.run_cumulative_ablation(estimator, x_spec_train, x_test_spec, ablation_df, output_filename=f"cum_ablation_{category}_{sub_col}.csv", n_samples=15)
                   else:
                         print(f"Warning: No positive predictions from Gatekeeper for {category}, skipping Specialist evaluation.")
-
+                  
                   results[category] = (gate_model, spec_model)
             
-            # --- 2. Clean Discretization & Export ---
-            print("\n>>> Discretizing and Exporting Hierarchical data for Rulex...")
-            data_loader = LoadData()
-            x_train_disc, x_test_disc = data_loader.discretize_for_rulex(x_train, x_test)
-            data_loader.export_data_for_rulex(x_train_disc, x_test_disc, y_train, y_test, dataset_name="Myocardial_Infarction")
+            # --- ONE UNIFIED RULEX EXPORT AT THE VERY END ---
+            print("\n>>> Exporting unified Hierarchical data for Rulex...")
+            data_loader = LoadData() # instantiate the loader class
+            data_loader.export_data_for_rulex(
+                x_train_accumulated, 
+                x_test_accumulated, 
+                y_train, 
+                y_test,
+                dataset_name="Myocardial_Infarction"
+            )
 
             return results
       
