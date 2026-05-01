@@ -144,12 +144,12 @@ class Explainability:
                   np.tile(x_test.values, (n_samples, 1)), 
                   columns=x_test.columns
             )
-            
+            np.random.seed(42)  # For reproducibility of random sampling
             for feat_idx, feat_name in enumerate(feature_names):
                   x_test_batch = x_test_repeated.copy()
                   
                   # Sample random values for the entire batch at once
-                  bg_samples = x_train[feat_name].sample(n=len(x_test_batch), replace=True, random_state=42).values
+                  bg_samples = x_train[feat_name].sample(n=len(x_test_batch), replace=True).values
                   x_test_batch[feat_name] = bg_samples
                   
                   # Predict the entire batch in ONE model call
@@ -215,6 +215,7 @@ class Explainability:
             features_to_mask = []
             prev_preds = original_preds.copy()
             
+            np.random.seed(42)  # For reproducibility of random sampling
             # 3. The Cumulative Loop
             for feat_name in least_to_most_features:
                   features_to_mask.append(feat_name) 
@@ -223,7 +224,7 @@ class Explainability:
                   x_test_batch = x_test_repeated.copy()
                   
                   # Sample enough random background rows for the entire batch in one go
-                  bg_samples = x_train[features_to_mask].sample(n=len(x_test_batch), replace=True, random_state=42).values
+                  bg_samples = x_train[features_to_mask].sample(n=len(x_test_batch), replace=True).values
                   
                   # Overwrite all masked features simultaneously 
                   x_test_batch[features_to_mask] = bg_samples
