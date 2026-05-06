@@ -1,10 +1,12 @@
 import random
 import numpy as np
-from Load import LoadData
-from sklearn.model_selection import train_test_split 
-from Strategy import MultiLabelStrategy
 import pandas as pd
+from sklearn.model_selection import train_test_split 
+
+from Load import LoadData
+from Strategy import MultiLabelStrategy
 from PostProcessor import PostProcessor
+from PerformanceMetrics import save_performance_metrics_multilabel
 
 np.random.seed(42)
 random.seed(42)
@@ -55,9 +57,20 @@ def main():
 
     # 5. Strategy Execution
     strategy = MultiLabelStrategy(algo='xgb')
-    strategy.execute(x_train, x_test, y_train, y_test)
+    clf = strategy.execute(x_train, x_test, y_train, y_test)
     
-    # 6. Post Processing
+    # 6. Save Performance Metrics
+    save_performance_metrics_multilabel(
+        clf          = clf,
+        x_test       = x_test,
+        y_test       = y_test,
+        dataset_name = dataset_name,
+        target_cols  = target_list,
+        n_train      = len(x_train),
+        output_folder= 'outputs',
+    )
+    
+    # 7. Post Processing
     aggregator = PostProcessor()
     aggregator.aggregate_and_clean(database_name=dataset_name)
 

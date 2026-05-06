@@ -3,9 +3,11 @@ import numpy as np
 from Load import LoadData
 from sklearn.model_selection import train_test_split 
 import pandas as pd
+
 from Strategy import HierarchicalStrategy
 from Config import MycordinalConfig as config
 from PostProcessor import PostProcessor
+from PerformanceMetrics import save_performance_metrics_hierarchical  # ← NEW
 
 np.random.seed(42)
 random.seed(42)
@@ -51,9 +53,20 @@ def main():
         group_mapping=config.Hierarchy_mapping,
         algo='xgb'
     )
-    strategy.execute(x_train, x_test, y_train, y_test)
+    results, x_test_accumulated = strategy.execute(x_train, x_test, y_train, y_test)
     
-    # 6. Post Processing
+    # 6. Save Performance Metrics
+    save_performance_metrics_hierarchical(
+        results       = results,
+        x_test        = x_test_accumulated,
+        y_test        = y_test,
+        dataset_name  = dataset_name,
+        group_mapping = config.Hierarchy_mapping,
+        n_train       = len(x_train),
+        output_folder = 'outputs',
+    )
+    
+    # 7. Post Processing
     aggregator = PostProcessor()
     # Explicitly pass the database name so the final file isn't just "None_final_explanation_results.csv"
     aggregator.aggregate_and_clean(database_name=dataset_name) 

@@ -2,11 +2,13 @@ import pandas as pd
 import numpy as np
 from scipy.stats import spearmanr, kendalltau
 import os
+from Visualization import plot_cumulative_ablation_per_dataset
 
 class XAIComparativeAnalysis:
-    def __init__(self):
+    def __init__(self, figures_folder: str = 'outputs/figures'):
         # This list will hold exactly ONE row per dataset (the aggregated result)
         self.dataset_summaries = []
+        self.figures_folder = figures_folder
 
     def execute_analysis(self, file_path, top_k=5):
         print(f"\n>>> Processing Analysis for File: {file_path}")
@@ -150,6 +152,20 @@ class XAIComparativeAnalysis:
             print(dataset_avg.to_string(index=False))
         else:
             print("No results generated.")
+        
+        # 7. Visualization: Cumulative Ablation Plot for this dataset
+        explanation_csv = file_path.replace('.csv', '_final_explanation_results.csv')
+        dataset_label   = (
+            os.path.basename(file_path)
+              .replace('.csv', '')
+              .replace('_', ' ')
+        )
+        plot_cumulative_ablation_per_dataset(
+            explanation_csv = explanation_csv,
+            dataset_name    = dataset_label,
+            output_folder   = self.figures_folder,
+            max_display     = 20,   # show at most 20 features (most important ones)
+        )
 
     def save_final_table(self, output_folder='outputs', filename='final_xai_summary.csv'):
         if not self.dataset_summaries:

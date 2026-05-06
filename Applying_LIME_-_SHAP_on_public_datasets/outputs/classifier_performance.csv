@@ -1,0 +1,10 @@
+Dataset,Target,Classifier,N_train,N_test,Accuracy,F1 (weighted),AUROC
+Myocardial_Infarction,Averaged across targets,HierarchicalStrategy (11 specialist subtypes averaged),1189,510,0.8017,0.8058,0.622
+Cervical_Cancer,Averaged across targets,MultiOutputClassifier (4 targets averaged),600,258,0.9341,0.9209,0.5564
+Hepatitis,Stage,XGBClassifier,969,416,0.4904,0.4903,0.4869
+Obesity_level,Obesity,XGBClassifier,1477,634,0.9117,0.9117,0.9645
+Diabetes_130_US,Readmitted,XGBClassifier,1706,750,0.8627,0.8371,0.5597
+Diabetic_Retinopathy,Class,XGBClassifier,805,346,0.6561,0.656,0.7182
+Glioma_Grading,Grade,RandomForestClassifier,587,252,0.8254,0.8246,0.912
+CDC_Diabetes,Diabetes_binary,XGBClassifier,1750,750,0.8253,0.8213,0.7701
+Breast_Cancer,class,RandomForestClassifier,489,210,0.9571,0.9573,0.9884

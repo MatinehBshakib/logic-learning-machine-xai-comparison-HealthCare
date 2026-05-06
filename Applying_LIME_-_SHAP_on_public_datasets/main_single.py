@@ -1,16 +1,19 @@
 import random
 import numpy as np
+import pandas as pd
 import os
 from sklearn.model_selection import train_test_split
 from Load import LoadData
 from sklearn.preprocessing import LabelEncoder
+
 from Strategy import SingleOutput
 from HCVOptimizer import HCVOptimizer as HCVOpt
 from ObesityOptimizer import ObesityOptimizer as ObesityOpt
 from DiabetesOptimizer import DiabetesOptimizer as DiabetesOpt
 from Diabetic_Retinopathy_Optimizer import DiabeticRetinopathyOptimizer as DROpt
+from PerformanceMetrics import save_performance_metrics
 from PostProcessor import PostProcessor
-import pandas as pd
+
 
 np.random.seed(42)
 random.seed(42)
@@ -119,9 +122,23 @@ def main():
             strategy = SingleOutput(algo='rf')
         else:
             strategy = SingleOutput(algo='xgb', scale_pos_weight=imbalance_ratio) 
-        strategy.execute(x_train, x_test, y_train, y_test)
+        clf = strategy.execute(x_train, x_test, y_train, y_test)
         
-        # 8. Post Processing
+        # 8. Save Performance Metrics
+        target_col = y_test.columns[0] if isinstance(y_test, pd.DataFrame) else target_list[0]
+        y_test_1d  = y_test.iloc[:, 0] if isinstance(y_test, pd.DataFrame) else y_test
+        if clf is not None:
+            save_performance_metrics(
+                clf           = clf,
+                x_test        = x_test,
+                y_test        = y_test_1d,
+                dataset_name  = dataset_name,
+                target_name   = target_col,
+                n_train       = len(x_train),  
+                output_folder = 'outputs',
+            )
+            
+        # 9. Post Processing
         aggregator = PostProcessor()
         aggregator.aggregate_and_clean(database_name=dataset_name)
 

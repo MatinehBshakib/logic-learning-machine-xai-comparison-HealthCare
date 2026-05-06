@@ -135,7 +135,7 @@ class HierarchicalStrategy(BaseStrategy):
                 dataset_name="Myocardial_Infarction"
             )
 
-            return results
+            return results, x_test_accumulated
       
 class MultiLabelStrategy(BaseStrategy):
       def __init__(self, algo='xgb'):
