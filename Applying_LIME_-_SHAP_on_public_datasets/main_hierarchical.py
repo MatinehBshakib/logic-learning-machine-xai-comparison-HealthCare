@@ -7,7 +7,7 @@ import pandas as pd
 from Strategy import HierarchicalStrategy
 from Config import MycordinalConfig as config
 from PostProcessor import PostProcessor
-from PerformanceMetrics import save_performance_metrics_hierarchical  # ← NEW
+from PerformanceMetrics import save_performance_metrics_hierarchical  
 
 np.random.seed(42)
 random.seed(42)
@@ -47,7 +47,13 @@ def main():
     x_test = x_test.apply(pd.to_numeric, errors='coerce').fillna(0)
     #drop correlated features
     x_train, x_test = loader.drop_correlated(x_train, x_test, threshold=0.90)
-
+    
+    # Validate that all data is perfectly numeric before proceeding
+    loader.validate_numeric(dataset_name, x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test)
+    
+    # 4. Export Cleaned Data for Rulex
+    loader.export_data_for_rulex(x_train, x_test, y_train, y_test, dataset_name=dataset_name)
+    
     # 5. Strategy Execution
     strategy = HierarchicalStrategy(
         group_mapping=config.Hierarchy_mapping,
