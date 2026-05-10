@@ -50,16 +50,8 @@ def main():
     
     # Validate that all data is perfectly numeric before proceeding
     loader.validate_numeric(dataset_name, x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test)
-<<<<<<< HEAD
-    
     # 4. Export Cleaned Data for Rulex
     loader.export_data_for_rulex(x_train, x_test, y_train, y_test, dataset_name=dataset_name)
-=======
-
-    # 4. Discretize and Export Cleaned Data for Rulex
-    x_train_disc, x_test_disc = loader.discretize_for_rulex(x_train, x_test)
-    loader.export_data_for_rulex(x_train_disc, x_test_disc, y_train, y_test, dataset_name=dataset_name)
->>>>>>> parent of 67a853cd (Revert "add discretisation to multi-output and hierarichical classes")
     
     # 5. Strategy Execution
     strategy = HierarchicalStrategy(
