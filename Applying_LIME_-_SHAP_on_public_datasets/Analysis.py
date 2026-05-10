@@ -8,7 +8,7 @@ _ANALYSIS_FILE_TO_DATASET_NAME = {
     'Breast_Cancer.csv':                 'Breast_Cancer',
     'CDC_Diabetes.csv':                  'CDC_Diabetes',
     'Cervical_Cancer.csv':               'Cervical_Cancer',
-    'Diabetes1999-2008.csv':             'Diabetes_130_US',
+    'Diabetes_130_US.csv':             'Diabetes_130_US',
     'Diabetic_Retinopathy_Debrecen.csv': 'Diabetic_Retinopathy',
     'Glioma_Grading_Clinical.csv':       'Glioma_Grading',
     'Hepatit_C_Virus.csv':               'Hepatitis',

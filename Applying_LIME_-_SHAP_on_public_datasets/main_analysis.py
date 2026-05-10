@@ -9,7 +9,7 @@ def main():
       'Breast_Cancer.csv', 
       'CDC_Diabetes.csv',
       'Cervical_Cancer.csv', 
-      'Diabetes1999-2008.csv',
+      'Diabetes_130_US.csv',
       'Diabetic_Retinopathy_Debrecen.csv',
       'Glioma_Grading_Clinical.csv',
       'Hepatit_C_Virus.csv',
