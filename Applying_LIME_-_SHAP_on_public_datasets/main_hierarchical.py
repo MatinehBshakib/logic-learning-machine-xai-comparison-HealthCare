@@ -45,9 +45,16 @@ def main():
     
     x_train = x_train.apply(pd.to_numeric, errors='coerce').fillna(0)
     x_test = x_test.apply(pd.to_numeric, errors='coerce').fillna(0)
-    #drop correlated features
+    # drop correlated features
     x_train, x_test = loader.drop_correlated(x_train, x_test, threshold=0.90)
+    
+    # Validate that all data is perfectly numeric before proceeding
+    loader.validate_numeric(dataset_name, x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test)
 
+    # 4. Discretize and Export Cleaned Data for Rulex
+    x_train_disc, x_test_disc = loader.discretize_for_rulex(x_train, x_test)
+    loader.export_data_for_rulex(x_train_disc, x_test_disc, y_train, y_test, dataset_name=dataset_name)
+    
     # 5. Strategy Execution
     strategy = HierarchicalStrategy(
         group_mapping=config.Hierarchy_mapping,

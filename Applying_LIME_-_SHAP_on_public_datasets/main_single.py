@@ -100,12 +100,13 @@ def main():
             x_test = x_test.apply(pd.to_numeric, errors='coerce').fillna(0)
         
         x_train, x_test = loader.drop_correlated(x_train, x_test, threshold=0.90)
+        
         # Validate that all data is numeric before proceeding    
         loader.validate_numeric(dataset_name, x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test)
-        #Discretize for Rulex (bins numbers into groups)
+        # 6. Discretize for Rulex (bins numbers into groups)
         x_train_disc, x_test_disc = loader.discretize_for_rulex(x_train, x_test)
-
         loader.export_data_for_rulex(x_train_disc, x_test_disc, y_train, y_test, dataset_name=dataset_name)
+        
         # For imbalanced datasets, also export a balanced version for Rulex to mine balanced rules
         imbalanced_datasets = ['CDC_Diabetes', 'Cervical_Cancer']
         if dataset_name in imbalanced_datasets:
