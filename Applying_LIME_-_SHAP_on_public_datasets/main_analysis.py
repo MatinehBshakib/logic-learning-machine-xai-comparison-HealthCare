@@ -1,4 +1,5 @@
 from Analysis import XAIComparativeAnalysis
+from Visualization import generate_all_plots
 import os
 
 def main():
@@ -22,6 +23,12 @@ def main():
 
       # 3. Save the Final Table
       analysis.save_final_table(output_folder=base_folder)
+
+      # 4. Generate all visual plots
+      generate_all_plots(
+          summary_csv='outputs/final_xai_summary.csv',
+          output_folder='outputs/figures'
+      )
 
 if __name__ == "__main__":
     main()

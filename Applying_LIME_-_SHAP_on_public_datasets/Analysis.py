@@ -4,6 +4,17 @@ from scipy.stats import spearmanr, kendalltau
 import os
 from Visualization import plot_cumulative_ablation_per_dataset
 
+_ANALYSIS_FILE_TO_DATASET_NAME = {
+    'Breast_Cancer.csv':                 'Breast_Cancer',
+    'CDC_Diabetes.csv':                  'CDC_Diabetes',
+    'Cervical_Cancer.csv':               'Cervical_Cancer',
+    'Diabetes1999-2008.csv':             'Diabetes_130_US',
+    'Diabetic_Retinopathy_Debrecen.csv': 'Diabetic_Retinopathy',
+    'Glioma_Grading_Clinical.csv':       'Glioma_Grading',
+    'Hepatit_C_Virus.csv':               'Hepatitis',
+    'Myocardial_Infarction.csv':         'Myocardial_Infarction',
+    'Obesity_level.csv':                 'Obesity_level',
+}
 class XAIComparativeAnalysis:
     def __init__(self, figures_folder: str = 'outputs/figures'):
         # This list will hold exactly ONE row per dataset (the aggregated result)
@@ -154,17 +165,18 @@ class XAIComparativeAnalysis:
             print("No results generated.")
         
         # 7. Visualization: Cumulative Ablation Plot for this dataset
-        explanation_csv = file_path.replace('.csv', '_final_explanation_results.csv')
-        dataset_label   = (
-            os.path.basename(file_path)
-              .replace('.csv', '')
-              .replace('_', ' ')
+        base_name    = os.path.basename(file_path)
+        dataset_key  = _ANALYSIS_FILE_TO_DATASET_NAME.get(base_name, base_name.replace('.csv', ''))
+        explanation_csv = os.path.join(
+            os.path.dirname(file_path),
+            f'{dataset_key}_final_explanation_results.csv'
         )
+        dataset_label = dataset_key.replace('_', ' ')
         plot_cumulative_ablation_per_dataset(
             explanation_csv = explanation_csv,
             dataset_name    = dataset_label,
             output_folder   = self.figures_folder,
-            max_display     = 20,   # show at most 20 features (most important ones)
+            max_features    = 20,
         )
 
     def save_final_table(self, output_folder='outputs', filename='final_xai_summary.csv'):
@@ -195,4 +207,3 @@ class XAIComparativeAnalysis:
         output_path = os.path.join(output_folder, filename)
         final_table[cols].to_csv(output_path, index=False)
         print(f"\n>>> Table saved to: {output_path}")
-
