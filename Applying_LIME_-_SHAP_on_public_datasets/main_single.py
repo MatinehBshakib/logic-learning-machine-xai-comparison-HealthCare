@@ -10,7 +10,6 @@ from Strategy import SingleOutput
 from HCVOptimizer import HCVOptimizer as HCVOpt
 from ObesityOptimizer import ObesityOptimizer as ObesityOpt
 from DiabetesOptimizer import DiabetesOptimizer as DiabetesOpt
-from Diabetic_Retinopathy_Optimizer import DiabeticRetinopathyOptimizer as DROpt
 from PerformanceMetrics import save_performance_metrics
 from PostProcessor import PostProcessor
 
@@ -66,8 +65,6 @@ def main():
             optimizer = ObesityOpt()
         elif dataset_name == "Diabetes_130_US":
             optimizer = DiabetesOpt()
-        elif dataset_name == "Diabetic_Retinopathy":
-            optimizer = DROpt()
 
         # Export the raw data before one-hot encoding for Rulex's categorical rule mining
         #loader.export_raw_for_rulex(x_train_raw, x_test_raw, y_train_raw, y_test_raw,dataset_name=dataset_name)
